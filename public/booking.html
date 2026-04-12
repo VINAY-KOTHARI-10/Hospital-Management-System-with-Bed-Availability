@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book a Bed — MediTrack</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        .bed-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-top: 0.75rem
+        }
+
+        .bed-slot {
+            width: 52px;
+            height: 52px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+            border: 2px solid transparent;
+            transition: all 0.18s;
+            position: relative;
+        }
+
+        .bed-slot:hover:not(.slot-taken):not(.slot-hidden) {
+            transform: scale(1.1);
+            z-index: 2
+        }
+
+        .bed-slot.slot-available {
+            background: #dcfce7;
+            border-color: #16a34a;
+            color: #166534
+        }
+
+        .bed-slot.slot-available:hover {
+            background: #bbf7d0;
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3)
+        }
+
+        .bed-slot.slot-taken {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #991b1b;
+            cursor: not-allowed
+        }
+
+        .bed-slot.slot-unoccupied {
+            background: #ffedd5;
+            border-color: #f97316;
+            color: #9a3412;
+            cursor: not-allowed
+        }
+
+        .bed-slot.slot-pending {
+            background: #fef9c3;
+            border-color: #ca8a04;
+            color: #92400e;
+            cursor: not-allowed
+        }
+
+        .bed-slot.slot-hidden {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+            color: #6b7280;
+            cursor: not-allowed;
+            opacity: 0.6
+        }
+
+        .bed-slot.slot-selected {
+            border-color: #16a34a;
+            box-shadow: 0 0 0 4px rgba(22, 163, 74, 0.5);
+            transform: scale(1.12)
+        }
+
+        .bed-slot .bed-icon {
+            font-size: 1.1rem;
+            line-height: 1
+        }
+
+        .bed-slot .bed-no {
+            font-size: 0.6rem;
+            margin-top: 0.1rem;
+            text-align: center
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+            font-size: 0.8rem
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            border: 1.5px solid
+        }
+
+        .ai-mismatch {
+            background: #fef08a;
+            border: 1.5px solid #ca8a04;
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 0.75rem;
+            display: none
+        }
+
+        .book-mode-bar {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem
+        }
+
+        .book-mode-bar button {
+            flex: 1;
+            padding: 0.7rem;
+            border-radius: 10px;
+            border: 2px solid var(--border);
+            background: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-size: 0.88rem
+        }
+
+        .book-mode-bar button.active {
+            border-color: var(--primary);
+            background: #dcfce7;
+            color: var(--primary)
+        }
+
+        .slot-input {
+            padding: 0.4rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 0.85rem;
+            width: 100%
+        }
+
+        .emergency-pulse {
+            animation: pulse-banner 2s ease infinite
+        }
+
+        @keyframes pulse-banner {
+
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4)
+            }
+
+            50% {
+                box-shadow: 0 0 0 8px rgba(239, 68, 68, 0)
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar" id="navbar"></nav>
+
+    <div class="page-header" id="page-header">
+        <h1>📋 Book a Hospital Bed</h1>
+        <p>Select your hospital and choose an available bed</p>
+    </div>
+
+    <!-- Booking Detail Panel (shows if viewing specific booking) -->
+    <div id="booking-status-panel" class="card fade-in"
+        style="display:none;margin-bottom:1.5rem;border-left:5px solid var(--primary)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+                <h2 style="font-size:1.1rem;font-weight:800;margin-bottom:0.4rem">📋 Booking Status</h2>
+                <div id="status-content" style="font-size:0.9rem;line-height:1.6"></div>
+            </div>
+            <div id="status-badge-container"></div>
+        </div>
+        <div id="receipt-action"
+            style="margin-top:1.25rem;display:none;padding-top:1rem;border-top:1px solid var(--border)">
+            <a id="receipt-link" href="#" target="_blank" class="btn btn-primary btn-sm">📄 View Digital Receipt</a>
+        </div>
+    </div>
+
+    <div class="container section">
+        <div id="booking-form-panel">
+            <!-- Booking mode: Immediate vs Appointment -->
+            <div class="book-mode-bar">
+                <button id="mode-immediate" class="active" onclick="setMode('immediate')">⚡ Book Now (Walk-in)</button>
+                <button id="mode-appt" onclick="setMode('appointment')">📅 Book Appointment Slot</button>
+            </div>
+
+            <!-- Emergency banner -->
+            <div id="emergency-banner" class="emergency-pulse"
+                style="display:none;background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;padding:1rem 1.5rem;border-radius:var(--radius);margin-bottom:1.5rem;display:none">
+                <strong>🚨 EMERGENCY MODE</strong> — Priority allocation enabled. Hidden emergency beds may be accessed.
+                Proceed to Emergency Reception after booking.
+            </div>
+
+            <!-- Active booking alert -->
+            <div id="active-booking-alert" class="alert alert-warning"
+                style="display:none;align-items:center;gap:0.75rem;margin-bottom:1rem">
+                ⚠️ <span id="active-booking-text" style="flex:1"></span>
+                <button class="btn btn-danger btn-sm" onclick="cancelActiveBooking()">Cancel Current</button>
+            </div>
+
+            <!-- Confirm cancel modal -->
+            <div class="modal-overlay" id="confirm-modal">
+                <div class="modal">
+                    <div class="modal-title">⚠️ Active Booking Detected</div>
+                    <p>Your current booking will be automatically cancelled and replaced. Continue?</p>
+                    <div class="modal-footer">
+                        <button class="btn btn-ghost" onclick="closeModal()">Keep Current</button>
+                        <button class="btn btn-danger" onclick="confirmBook()">Yes, Replace</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AI Mismatch warning -->
+            <div class="ai-mismatch" id="ai-mismatch">
+                <div style="font-weight:700;font-size:0.95rem">⚠️ AI Severity Mismatch Detected</div>
+                <div id="ai-mismatch-msg" style="margin-top:0.35rem;font-size:0.85rem"></div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+                    <button class="btn btn-primary btn-sm" onclick="acceptAIMismatch()">✅ Change to AI
+                        Suggestion</button>
+                    <button class="btn btn-ghost btn-sm" onclick="dismissAIMismatch()">Keep My Choice</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <!-- Hospital selector -->
+                <div class="form-group">
+                    <label class="form-label">Select Hospital</label>
+                    <select class="form-control" id="sel-hospital" onchange="onHospitalChange()">
+                        <option value="">Choose hospital…</option>
+                    </select>
+                </div>
+
+                <!-- Reason + Bed Type -->
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Reason</label>
+                        <select class="form-control" id="sel-reason" onchange="onReasonChange()">
+                            <option value="">Select reason…</option>
+                            <option value="Emergency">🚨 Emergency</option>
+                            <option value="Surgery">🔪 Surgery</option>
+                            <option value="General illness">💊 General Illness</option>
+                            <option value="Accident">🚗 Accident</option>
+                            <option value="Maternity">🤰 Maternity</option>
+                            <option value="Other">📝 Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin:0">
+                        <label class="form-label">Bed Type</label>
+                        <select class="form-control" id="sel-bedtype" onchange="onBedTypeChange()">
+                            <option value="">Select bed type…</option>
+                            <option value="ICU">🫀 ICU</option>
+                            <option value="General">🛏️ General</option>
+                            <option value="Emergency">🚨 Emergency</option>
+                            <option value="Maternity">👶 Maternity</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Appointment slot (hidden until mode=appointment) -->
+                <div class="form-group" id="appt-group" style="display:none">
+                    <label class="form-label">Appointment Date & Time</label>
+                    <input type="datetime-local" class="form-control" id="appt-datetime" />
+                </div>
+
+                <!-- Symptoms + AI check -->
+                <div class="form-group">
+                    <label class="form-label">Symptoms <span style="color:var(--text-muted)">(for AI
+                            assessment)</span></label>
+                    <textarea class="form-control" id="symptoms" placeholder="Describe your symptoms in detail…"
+                        rows="2"></textarea>
+                </div>
+
+                <div
+                    style="border:1px solid var(--border);border-radius:var(--radius-sm);padding:1.5rem;margin-bottom:1rem;background:#f8fafc;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+                    <div style="flex:1;min-width:250px">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+                            <div><strong style="font-size:1.1rem;color:var(--primary)">🤖 AI Severity Analysis</strong>
+                                <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem">Intelligent
+                                    severity classification to match patients with appropriate bed types automatically.
+                                </div>
+                            </div>
+                        </div>
+                        <button class="btn btn-outline btn-sm" onclick="runAI()" id="ai-btn"
+                            style="margin-top:0.5rem">Analyze Severity based on symptoms</button>
+                        <div id="ai-result"
+                            style="margin-top:1rem;font-size:0.85rem;display:none;background:#fff;padding:1rem;border-radius:8px;border:1px solid #e2e8f0;box-shadow:0 4px 6px rgba(0,0,0,0.02)">
+                        </div>
+                    </div>
+                    <div style="flex-shrink:0;width:150px;display:flex;justify-content:center;">
+                        <img src="/images/ai_analysis.png" alt="AI Medical Analysis" class="img-hover-effect"
+                            style="max-width:100%; border-radius:12px; box-shadow:0 10px 20px rgba(0,0,0,0.1);" />
+                    </div>
+                </div>
+
+                <!-- Bed grid (movie-style) -->
+                <div id="bed-grid-section" style="display:none;margin-bottom:1rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                        <strong style="font-size:0.9rem">🎬 Select a Bed (click to book)</strong>
+                        <span style="font-size:0.8rem;color:var(--text-muted)" id="bed-grid-note"></span>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#dcfce7;border-color:#16a34a"></div>Available
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#fee2e2;border-color:#dc2626"></div>Occupied
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#ffedd5;border-color:#f97316"></div>Booked (not
+                            admitted)
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#fef9c3;border-color:#eab308"></div>Pending
+                            approval
+                        </div>
+                    </div>
+                    <div class="bed-grid" id="bed-grid"></div>
+                    <div id="selected-bed-info"
+                        style="margin-top:0.6rem;font-size:0.85rem;color:var(--primary);font-weight:600"></div>
+                </div>
+
+                <div id="book-error" class="alert alert-danger" style="display:none"></div>
+
+                <button class="btn btn-primary btn-lg" onclick="bookBed()" id="book-btn" style="width:100%">
+                    📋 Request Booking
+                </button>
+                <div style="margin-top:0.6rem;font-size:0.75rem;color:var(--text-muted);text-align:center">
+                    ⏳ Admin must approve your request. You'll receive a notification when confirmed.
+                </div>
+            </div>
+        </div>
+
+        <!-- My Bookings (Always Visible) -->
+        <div style="margin-top:2rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                <h2 style="font-size:1.1rem;font-weight:800">📁 My Bookings & History</h2>
+                <a href="/score.html" class="btn btn-ghost btn-sm">📊 My Score details</a>
+            </div>
+
+            <!-- Score Overview -->
+            <div id="my-score-panel"
+                style="margin-bottom:1rem;background:#f8fafc;border:1px solid var(--border);border-radius:var(--radius-sm);padding:1rem;display:flex;gap:1.5rem;align-items:center;flex-wrap:wrap">
+                <div style="flex:1">
+                    <div style="font-size:0.85rem;color:var(--text-muted);font-weight:600">RELIABILITY SCORE</div>
+                    <div style="font-size:1.8rem;font-weight:800;color:var(--primary)" id="score-val">—</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700" id="score-total">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted)">Bookings</div>
+                </div>
+                <div style="text-align:center">
+                    <div style="font-size:1.1rem;font-weight:700;color:var(--danger)" id="score-cancels">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-muted)">Cancellations</div>
+                </div>
+            </div>
+
+            <div id="my-bookings">
+                <div style="text-align:center;padding:2rem">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <button class="emergency-fab" onclick="toggleEmergency()" title="Emergency booking">🚨</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+    <script>
+        let selectedBedId = null, pendingData = null, mode = 'immediate';
+        let aiSuggestedBedType = null, aiMismatchDismissed = false;
+        let isEmergencyMode = false;
+
+        function onBedUpdate() {
+            if (window.location.search.includes('id=')) checkExistingBooking();
+            else { loadMyBookings(); loadHospitals(); }
+        }
+
+        async function init() {
+            if (!requireAuth()) return;
+            buildNavbar('booking');
+            initSocket();
+            const p = new URLSearchParams(window.location.search);
+            if (p.get('reason') === 'Emergency') activateEmergency();
+            await loadHospitals();
+            if (p.get('hospitalId')) { document.getElementById('sel-hospital').value = p.get('hospitalId'); await onHospitalChange(); }
+
+            if (!p.get('id')) {
+                await checkActiveBooking();
+            } else {
+                await checkExistingBooking();
+            }
+
+            loadMyBookings();
+        }
+
+        async function checkExistingBooking() {
+            const params = new URLSearchParams(window.location.search);
+            const bookingId = params.get('id');
+            if (!bookingId) return;
+
+            try {
+                const b = await API.get(`/api/bookings/${bookingId}`);
+                document.getElementById('booking-form-panel').style.display = 'none';
+
+                const hdr = document.getElementById('page-header');
+                hdr.style.display = 'block';
+                hdr.style.background = '';
+                document.querySelector('#page-header h1').textContent = '📋 My Bookings';
+                document.querySelector('#page-header p').textContent = 'Track and manage your active admission request';
+
+                const activeNavLink = document.querySelector('.navbar-links a.active');
+                if (activeNavLink) activeNavLink.innerHTML = '📋 My Bookings';
+
+                const panel = document.getElementById('booking-status-panel');
+                panel.style.display = 'block';
+
+                const statusBadge = { pending: 'badge-yellow', confirmed: 'badge-blue', active: 'badge-green', discharged: 'badge-purple', rejected: 'badge-red' };
+                document.getElementById('status-content').innerHTML = `
+          <div><strong>Hospital:</strong> ${b.hospitalId?.name || '—'}</div>
+          <div><strong>Bed Type:</strong> ${b.bedType}</div>
+          <div><strong>Reserved Bed:</strong> ${b.bedSlotId?.bedNumber || 'Awaiting Allocation'}</div>
+          ${b.adminNote ? `<div style="margin-top:0.5rem;color:var(--text-muted);background:#f8fafc;padding:0.5rem;border-radius:6px"><strong>Admin Note:</strong> ${b.adminNote}</div>` : ''}
+        `;
+                let statusText = b.status.toUpperCase();
+                if (b.status === 'confirmed') statusText = 'SLOT CONFIRMED, ADMIT PENDING';
+                if (b.status === 'active') statusText = 'ADMITTED';
+                let statusHtml = `<span class="badge ${statusBadge[b.status] || 'badge-blue'}" style="font-size:0.8rem">${statusText}</span>`;
+
+                if (b.status === 'confirmed' && b.timerStartedAt) {
+                    const timerEnd = new Date(b.timerStartedAt).getTime() + (3 * 60 * 1000);
+                    statusHtml += `<div style="margin-top:0.75rem;font-weight:700;color:#ef4444;font-size:0.9rem;" id="timer-container">
+                                      ⏱️ Admittance Timer: <span id="booking-countdown" data-end="${timerEnd}">--:--</span>
+                                   </div>`;
+                }
+
+                document.getElementById('status-badge-container').innerHTML = statusHtml;
+
+                if (b.status === 'confirmed' && b.timerStartedAt) {
+                    const cdEl = document.getElementById('booking-countdown');
+                    const tend = parseInt(cdEl.getAttribute('data-end'));
+                    const interval = setInterval(() => {
+                        const remaining = Math.max(0, tend - new Date().getTime());
+                        if (remaining === 0) {
+                            clearInterval(interval);
+                            const tc = document.getElementById('timer-container');
+                            if (tc) tc.innerHTML = '<span style="color:var(--text-muted);font-size:0.85rem">Admittance timer expired. You are marked Low Priority.</span>';
+                            return;
+                        }
+                        const m = Math.floor(remaining / 60000);
+                        const s = Math.floor((remaining % 60000) / 1000);
+                        const cd = document.getElementById('booking-countdown');
+                        if (cd) cd.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+                    }, 500);
+                }
+
+                let actionsHtml = '';
+                if (['confirmed', 'active', 'discharged'].includes(b.status)) {
+                    const rLink = b.status === 'discharged' ? `/discharge-receipt.html?id=${b._id}` : `/receipt.html?id=${b._id}`;
+                    actionsHtml += `<a href="${rLink}" class="btn btn-outline btn-sm">🧾 View Full Receipt</a>`;
+                }
+                if (['pending', 'confirmed', 'active', 'occupied', 'unoccupied'].includes(b.status)) {
+                    actionsHtml += `<button class="btn btn-danger btn-sm" onclick="cancelBk('${b._id}')" style="margin-left:0.5rem">Cancel Booking</button>`;
+                }
+
+                if (actionsHtml) {
+                    const rAction = document.getElementById('receipt-action');
+                    rAction.innerHTML = actionsHtml;
+                    rAction.style.display = 'block';
+                }
+            } catch (_) { }
+        }
+
+        function toggleEmergency() {
+            if (isEmergencyMode) {
+                document.getElementById('sel-reason').value = 'General illness';
+                onReasonChange();
+            } else {
+                activateEmergency();
+            }
+        }
+
+        function setMode(m) {
+            mode = m;
+            document.getElementById('mode-immediate').classList.toggle('active', m === 'immediate');
+            document.getElementById('mode-appt').classList.toggle('active', m === 'appointment');
+            document.getElementById('appt-group').style.display = m === 'appointment' ? 'block' : 'none';
+        }
+
+        function activateEmergency() {
+            isEmergencyMode = true;
+            document.getElementById('sel-reason').value = 'Emergency';
+            document.getElementById('sel-bedtype').value = 'Emergency';
+
+            const fab = document.querySelector('.emergency-fab');
+            if (fab) fab.style.backgroundColor = '#16a34a'; // Switch to green
+
+            const banner = document.getElementById('emergency-banner');
+            banner.style.display = 'block';
+            banner.classList.add('emergency-pulse');
+            document.getElementById('page-header').style.background = 'linear-gradient(135deg,#ef4444,#b91c1c)';
+            document.querySelector('#page-header h1').textContent = '🚨 Emergency Booking';
+            document.querySelector('#page-header p').textContent = 'Priority allocation — hidden emergency beds may be accessed';
+            onBedTypeChange();
+        }
+
+        function onReasonChange() {
+            const r = document.getElementById('sel-reason').value;
+            if (r === 'Emergency') { activateEmergency(); return; }
+            if (r === 'Maternity') document.getElementById('sel-bedtype').value = 'Maternity';
+            if (r === 'Accident' || r === 'Surgery') document.getElementById('sel-bedtype').value = 'ICU';
+
+            isEmergencyMode = false;
+            const fab = document.querySelector('.emergency-fab');
+            if (fab) fab.style.backgroundColor = ''; // Revert to CSS default (red)
+
+            document.getElementById('emergency-banner').style.display = 'none';
+            document.getElementById('page-header').style.background = '';
+            document.querySelector('#page-header h1').textContent = '📋 Book a Hospital Bed';
+            document.querySelector('#page-header p').textContent = 'Select your hospital and choose an available bed';
+            onBedTypeChange();
+        }
+
+        function onBedTypeChange() {
+            const hospitalId = document.getElementById('sel-hospital').value;
+            const bedType = document.getElementById('sel-bedtype').value;
+            if (hospitalId && bedType) loadBedGrid(hospitalId, bedType);
+            else document.getElementById('bed-grid-section').style.display = 'none';
+        }
+
+        async function loadHospitals() {
+            const hosps = await API.get('/api/hospitals').catch(() => []);
+            window._hospitals = hosps;
+            const sel = document.getElementById('sel-hospital');
+            sel.innerHTML = '<option value="">Choose hospital…</option>' +
+                hosps.map(h => `<option value="${h._id}">${h.name} — ${h.city}</option>`).join('');
+        }
+
+        async function onHospitalChange() {
+            selectedBedId = null;
+            document.getElementById('selected-bed-info').textContent = '';
+            document.getElementById('bed-grid-section').style.display = 'none';
+            const bedType = document.getElementById('sel-bedtype').value;
+            if (bedType) loadBedGrid(document.getElementById('sel-hospital').value, bedType);
+        }
+
+        async function loadBedGrid(hospitalId, bedType) {
+            if (!hospitalId || !bedType) return;
+            try {
+                const isEmergency = document.getElementById('sel-reason').value === 'Emergency';
+                const showHidden = (bedType === 'Emergency' || isEmergency) ? 'true' : 'false';
+                const beds = await API.get(`/api/hospitals/${hospitalId}/beds?bedType=${bedType}&showHidden=${showHidden}`);
+                const grid = document.getElementById('bed-grid');
+                if (beds.length === 0) {
+                    grid.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">No beds of this type are currently listed. Please check back later.</div>';
+                    document.getElementById('bed-grid-note').textContent = '0 available';
+                    document.getElementById('bed-grid-section').style.display = 'block';
+                    return;
+                }
+                document.getElementById('bed-grid-note').textContent = `${beds.filter(b => b.status === 'available').length} available`;
+                grid.innerHTML = beds.map(b => {
+                    const cls = b.status === 'available' ? 'slot-available'
+                        : b.status === 'occupied' ? 'slot-taken'
+                            : b.status === 'unoccupied' ? 'slot-unoccupied'
+                                : b.status === 'pending' ? 'slot-pending'
+                                    : 'slot-hidden';
+                    const icon = b.bedType === 'ICU' ? '🫀' : b.bedType === 'Emergency' ? '🚨' : b.bedType === 'Maternity' ? '👶' : '🛏️';
+                    const clickable = b.status === 'available';
+                    return `<div class="bed-slot ${cls}${selectedBedId === b._id ? ' slot-selected' : ''}"
+          ${clickable ? `onclick="selectBed('${b._id}','${b.bedNumber}','${b.room}','${b.floor}')"` : ''}
+          title="${b.bedNumber} · Room ${b.room} · Floor ${b.floor} · ${b.status}">
+          <span class="bed-icon">${icon}</span>
+          <span class="bed-no">${b.bedNumber.split('-')[1]}</span>
+        </div>`;
+                }).join('');
+                document.getElementById('bed-grid-section').style.display = 'block';
+            } catch (_) { }
+        }
+
+        function selectBed(id, num, room, floor) {
+            selectedBedId = id;
+            document.getElementById('selected-bed-info').textContent = `✅ Selected: Bed ${num} · Room ${room} · Floor ${floor}`;
+            // Re-render grid to show selection
+            onBedTypeChange();
+        }
+
+        // AI severity check with mismatch detection
+        async function runAI() {
+            const symptoms = document.getElementById('symptoms').value.trim();
+            const reason = document.getElementById('sel-reason').value;
+            const selectedBedType = document.getElementById('sel-bedtype').value;
+            if (!symptoms && !reason) { showToast('Enter symptoms or reason first', 'general'); return; }
+            const btn = document.getElementById('ai-btn');
+            btn.disabled = true; btn.textContent = 'Analyzing…';
+            document.getElementById('ai-mismatch').style.display = 'none';
+            const result = document.getElementById('ai-result');
+            try {
+                const data = await API.post('/api/ai/severity', { symptoms, reason });
+                aiSuggestedBedType = data.suggestedBedType;
+                aiMismatchDismissed = false;
+                const cls = data.severity === 'Critical' ? 'severity-critical' : data.severity === 'Moderate' ? 'severity-moderate' : 'severity-low';
+                result.innerHTML = `<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+        Severity: <span class="${cls}">${data.severity}</span>
+        AI suggests: <strong>${data.suggestedBedType}</strong>
+      </div>
+      <div style="color:var(--text-muted);margin-top:0.2rem">${data.reason}</div>`;
+                result.style.display = 'block';
+
+                // Mismatch detection
+                if (selectedBedType && selectedBedType !== data.suggestedBedType) {
+                    const mismatchEl = document.getElementById('ai-mismatch');
+                    document.getElementById('ai-mismatch-msg').innerHTML =
+                        `You selected <strong>${selectedBedType}</strong>, but AI detected <strong>${data.severity}</strong> severity and recommends <strong>${data.suggestedBedType}</strong>.<br/>
+           <span style="color:#92400e">${data.reason}</span>`;
+                    mismatchEl.style.display = 'block';
+                }
+            } catch (err) {
+                result.innerHTML = `<div style="color:var(--danger);font-size:0.85rem">AI unavailable: ${err.message}</div>`;
+                result.style.display = 'block';
+            }
+            btn.disabled = false; btn.textContent = 'Analyze';
+        }
+
+        function acceptAIMismatch() {
+            if (aiSuggestedBedType) {
+                document.getElementById('sel-bedtype').value = aiSuggestedBedType;
+                onBedTypeChange();
+            }
+            document.getElementById('ai-mismatch').style.display = 'none';
+            aiMismatchDismissed = true;
+            selectedBedId = null;
+            document.getElementById('selected-bed-info').textContent = '';
+        }
+
+        function dismissAIMismatch() {
+            document.getElementById('ai-mismatch').style.display = 'none';
+            aiMismatchDismissed = true;
+        }
+
+        async function checkActiveBooking() {
+            try {
+                const me = await API.get('/api/auth/me');
+                if (me.activeBookingId) {
+                    const bookings = await API.get('/api/bookings/my');
+                    const active = bookings.find(b => ['pending', 'confirmed', 'occupied', 'unoccupied', 'active'].includes(b.status));
+                    if (active) {
+                        window.location.replace(`/booking.html?id=${active._id}`);
+                    }
+                }
+            } catch (_) { }
+        }
+
+        async function cancelActiveBooking() {
+            try {
+                const bookings = await API.get('/api/bookings/my');
+                const active = bookings.find(b => ['pending', 'confirmed', 'active'].includes(b.status));
+                if (active) { await API.del(`/api/bookings/cancel/${active._id}`); showToast('Booking cancelled.', 'cancellation'); checkActiveBooking(); loadMyBookings(); }
+            } catch (err) { showToast(err.message, 'fraud'); }
+        }
+
+        async function bookBed() {
+            const hospitalId = document.getElementById('sel-hospital').value;
+            const bedType = document.getElementById('sel-bedtype').value;
+            const reason = document.getElementById('sel-reason').value;
+            const symptoms = document.getElementById('symptoms').value.trim();
+            const appt = document.getElementById('appt-datetime').value;
+            const errEl = document.getElementById('book-error');
+            errEl.style.display = 'none';
+
+            if (!hospitalId || !bedType || !reason) {
+                errEl.textContent = 'Please select hospital, bed type, and reason.';
+                errEl.style.display = 'flex'; return;
+            }
+            if (mode === 'appointment' && !appt) {
+                errEl.textContent = 'Please select an appointment date and time.'; errEl.style.display = 'flex'; return;
+            }
+            if (!selectedBedId) {
+                errEl.textContent = 'Please select a specific bed from the grid above.'; errEl.style.display = 'flex'; return;
+            }
+
+            pendingData = {
+                hospitalId, bedType, bedSlotId: selectedBedId, reason, symptoms,
+                appointmentSlot: mode === 'appointment' ? new Date(appt) : null,
+                isImmediate: mode === 'immediate'
+            };
+            await submitBooking(false);
+        }
+
+        async function submitBooking(confirmCancel) {
+            const btn = document.getElementById('book-btn');
+            btn.disabled = true; btn.textContent = '⏳ Sending request…';
+            try {
+                const body = { ...pendingData, confirmCancel };
+                const booking = await API.post('/api/bookings/book', body);
+                const bookingId = booking._id || (booking.booking && booking.booking._id);
+
+                const user = API.getUser();
+                if (user) {
+                    user.activeBookingId = bookingId;
+                    API.setAuth(API.getToken(), user);
+                }
+
+                showToast(`Booking request sent! Awaiting admin approval.`, 'booking');
+                selectedBedId = null;
+                setTimeout(() => window.location.href = `/booking.html?id=${bookingId}`, 1500);
+            } catch (err) {
+                if (err.message?.includes('already have an active booking')) {
+                    showCustomConfirm('You already have an active request. Do you want to cancel the old one and place this new one?', () => {
+                        submitBooking(true);
+                    });
+                } else if (err.message?.includes('No beds available') || err.message?.includes('noBedsAvailable')) {
+                    document.getElementById('book-error').innerHTML =
+                        `🔴 No ${pendingData.bedType} beds available. <a href="/queue.html?hospitalId=${pendingData.hospitalId}" class="btn btn-outline btn-sm" style="margin-left:0.5rem">⏳ Join Queue</a>`;
+                    document.getElementById('book-error').style.display = 'flex';
+                } else {
+                    document.getElementById('book-error').textContent = err.message;
+                    document.getElementById('book-error').style.display = 'flex';
+                }
+            }
+            btn.disabled = false; btn.textContent = '📋 Request Booking';
+        }
+
+        function closeModal() { document.getElementById('confirm-modal').classList.remove('active'); }
+        async function confirmBook() { closeModal(); await submitBooking(true); }
+
+        async function loadMyBookings() {
+            try {
+                // Fetch user directly for score
+                const me = await API.get('/api/auth/me');
+                if (me) {
+                    const scoreEl = document.getElementById('score-val');
+                    if (scoreEl) {
+                        scoreEl.textContent = me.reliabilityScore + '/100';
+                        if (me.reliabilityScore < 60) scoreEl.style.color = 'var(--danger)';
+                        else if (me.reliabilityScore < 80) scoreEl.style.color = 'var(--warning)';
+                    }
+                    document.getElementById('score-total').textContent = me.totalBookings || 0;
+                    document.getElementById('score-cancels').textContent = me.totalCancellations || 0;
+                }
+
+                const bookings = await API.get('/api/bookings/my');
+                const cont = document.getElementById('my-bookings');
+                if (!bookings.length) { cont.innerHTML = '<div class="alert alert-info">No bookings yet.</div>'; return; }
+                const statusColors = { pending: 'badge-yellow', confirmed: 'badge-blue', active: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', discharged: 'badge-purple', completed: 'badge-green' };
+                cont.innerHTML = bookings.map(b => `
+        <div class="card" style="margin-bottom:0.65rem;padding:1rem">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+            <div>
+              <div style="font-weight:700">${b.hospitalId?.name || 'Hospital'}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted)">${b.bedType} · ${b.reason} · ${fmtDate(b.createdAt)}</div>
+              ${b.bedSlotId ? `<div style="font-size:0.75rem;color:var(--primary)">Bed ${b.bedSlotId.bedNumber} · Room ${b.bedSlotId.room} · Floor ${b.bedSlotId.floor}</div>` : ''}
+              ${b.lowPriority ? '<div style="font-size:0.75rem;color:#f97316;font-weight:600">⚠️ Low Priority (not checked in)</div>' : ''}
+              ${b.adminNote ? `<div style="font-size:0.78rem;background:#f0f9ff;padding:0.3rem 0.5rem;border-radius:6px;margin-top:0.3rem;">Admin note: ${b.adminNote}</div>` : ''}
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.5rem;flex-wrap:wrap">
+              <span class="badge ${statusColors[b.status] || 'badge-blue'}">${b.status}</span>
+              ${b.status === 'confirmed' ? `<a href="/receipt.html?id=${b._id}" class="btn btn-outline btn-sm">🧾 Receipt</a>` : ''}
+              ${b.status === 'discharged' ? `<a href="/discharge-receipt.html?id=${b._id}" class="btn btn-outline btn-sm">📄 Discharge</a>` : ''}
+              ${['pending', 'confirmed', 'active'].includes(b.status) ? `<button class="btn btn-danger btn-sm" onclick="cancelBk('${b._id}')">Cancel</button>` : ''}
+            </div>
+          </div>
+        </div>`).join('');
+            } catch (_) { }
+        }
+
+        async function cancelBk(id) {
+            showCustomConfirm('Are you sure you want to cancel this booking?', async () => {
+                try {
+                    await API.del(`/api/bookings/cancel/${id}`);
+
+                    const me = API.getUser();
+                    if (me) { me.activeBookingId = null; API.setAuth(API.getToken(), me); }
+
+                    showToast('Successfully cancelled.', 'cancellation');
+                    setTimeout(() => window.location.href = '/booking.html', 1500);
+                }
+                catch (err) { showToast(err.message, 'fraud'); }
+            });
+        }
+
+        init();
+    </script>
+
+    <!-- MediBot Chatbot Widget -->
+    <div id="chatbot-container"></div>
+    <script>
+        fetch('/chatbot-widget.html').then(r => r.text()).then(html => {
+            document.getElementById('chatbot-container').innerHTML = html;
+            // Re-run scripts from the widget
+            document.getElementById('chatbot-container').querySelectorAll('script').forEach(s => {
+                const ns = document.createElement('script');
+                ns.textContent = s.textContent;
+                document.body.appendChild(ns);
+            });
+        });
+    </script>
+</body>
+
+</html>
