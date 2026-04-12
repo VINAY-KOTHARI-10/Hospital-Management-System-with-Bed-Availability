@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard — MediTrack</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        .admin-layout {
+            display: flex;
+            min-height: calc(100vh - 60px)
+        }
+
+        .admin-sidebar {
+            width: 210px;
+            background: #fff;
+            border-right: 1px solid var(--border);
+            padding: 1.25rem 0;
+            flex-shrink: 0;
+            position: sticky;
+            top: 60px;
+            height: calc(100vh - 60px);
+            overflow-y: auto
+        }
+
+        .admin-sidebar a {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.65rem 1.25rem;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.18s;
+            text-decoration: none
+        }
+
+        .admin-sidebar a.active,
+        .admin-sidebar a:hover {
+            color: var(--primary);
+            background: #f0fdf4;
+            border-left-color: var(--primary)
+        }
+
+        .admin-main {
+            flex: 1;
+            padding: 1.75rem;
+            overflow-y: auto;
+            max-width: 1100px
+        }
+
+        /* Bed grid */
+        .bed-grid-admin {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.75rem
+        }
+
+        .bed-slot-admin {
+            width: 56px;
+            height: 60px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            font-weight: 700;
+            border: 2px solid transparent;
+            transition: all 0.18s;
+            position: relative
+        }
+
+        .slot-a {
+            background: #dcfce7;
+            border-color: #16a34a;
+            color: #166534
+        }
+
+        .slot-a:hover {
+            transform: scale(1.08);
+            box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.3)
+        }
+
+        .slot-o {
+            background: #fee2e2;
+            border-color: #dc2626;
+            color: #991b1b;
+            cursor: default
+        }
+
+        .slot-u {
+            background: #fef9c3;
+            border-color: #ca8a04;
+            color: #92400e;
+            cursor: pointer
+        }
+
+        .slot-p {
+            background: #fce7f3;
+            border-color: #f472b6;
+            color: #9d174d;
+            cursor: pointer
+        }
+
+        .slot-h {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+            color: #6b7280;
+            opacity: 0.7;
+            cursor: default
+        }
+
+        .slot-drag {
+            cursor: grab;
+            border-style: dashed
+        }
+
+        .slot-drag:active {
+            cursor: grabbing
+        }
+
+        .slot-drop-target {
+            outline: 3px dashed var(--primary);
+            outline-offset: 2px
+        }
+
+        .booking-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 10px;
+            margin-bottom: 0.65rem;
+            border: 1px solid var(--border);
+            background: #fff;
+            flex-wrap: wrap
+        }
+
+        .booking-row.pending-row {
+            border-left: 4px solid #f472b6;
+            background: #fdf2f8
+        }
+
+        .booking-row.confirmed-row {
+            border-left: 4px solid #3b82f6;
+            background: #eff6ff
+        }
+
+        .booking-row.active-row {
+            border-left: 4px solid #16a34a;
+            background: #f0fdf4
+        }
+
+        .booking-row.unoccupied-row {
+            border-left: 4px solid #ca8a04;
+            background: #fefce8
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            font-size: 0.78rem;
+            margin-bottom: 0.75rem
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem
+        }
+
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 4px;
+            border: 1.5px solid
+        }
+
+        .transfer-type-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center
+        }
+
+        .transfer-type-modal.active {
+            display: flex
+        }
+
+        .tmodal {
+            background: #fff;
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 420px;
+            width: 90%;
+            text-align: center
+        }
+
+        .tmodal-opts {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem
+        }
+
+        .tmodal-opts button {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 12px;
+            border: 2px solid var(--border);
+            background: #fff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s;
+            font-size: 0.9rem
+        }
+
+        .tmodal-opts button:hover {
+            border-color: var(--primary);
+            background: #f0fdf4;
+            color: var(--primary)
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar" id="navbar"></nav>
+
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <a onclick="showTab('overview')" class="active" id="tab-overview">📊 Overview <span id="badge-overview"
+                    style="display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:0.65rem;font-weight:800;padding:1px 5px;margin-left:4px;vertical-align:middle">0</span></a>
+            <a onclick="showTab('beds')" id="tab-beds">🛏️ Bed Control</a>
+            <a onclick="showTab('bookings')" id="tab-bookings">📋 Bookings</a>
+            <a onclick="showTab('transfers')" id="tab-transfers">🔄 Transfers</a>
+            <a onclick="showTab('queue')" id="tab-queue">⏳ Queue <span id="badge-queue"
+                    style="display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:0.65rem;font-weight:800;padding:1px 5px;margin-left:4px;vertical-align:middle">0</span></a>
+            <a onclick="showTab('fraud')" id="tab-fraud">🕵️ Fraud</a>
+        </aside>
+
+        <main class="admin-main">
+
+            <!-- ─── OVERVIEW ─── -->
+            <div id="pane-overview">
+                <div
+                    style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem; margin-bottom:1.25rem; background:#fff; padding:1rem 1.5rem; border-radius:12px; border:1px solid var(--border);">
+                    <div>
+                        <h1 style="font-size:1.4rem;font-weight:800;margin:0;">📊 Overview</h1>
+                        <div style="font-size:0.85rem;color:var(--text-muted);margin-top:0.2rem">Live bed and booking
+                            analytics</div>
+                    </div>
+                    <img src="/images/admin_dash.png" alt="Dashboard Analytics" class="img-hover-effect"
+                        style="height:55px; border-radius:8px;" />
+                </div>
+                <div class="grid-4" id="overview-stats"></div>
+                <div style="margin-top:1.5rem" id="overview-pending">
+                    <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem">⏳ Pending Approvals</h2>
+                    <div id="pending-list"></div>
+                </div>
+                <div style="margin-top:1.5rem">
+                    <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem">📅 Upcoming Appointments</h2>
+                    <div id="overview-appointments">
+                        <div class="alert alert-info" style="display:block">Loading…</div>
+                    </div>
+                </div>
+                <div style="margin-top:1.5rem">
+                    <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem">⏳ Active Queue <span
+                            id="overview-queue-badge"
+                            style="display:none;background:#ef4444;color:#fff;border-radius:999px;font-size:0.68rem;font-weight:800;padding:1px 6px;margin-left:4px;vertical-align:middle">0</span>
+                    </h2>
+                    <div id="overview-queue">
+                        <div class="alert alert-info" style="display:block">Loading…</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── BED CONTROL ─── -->
+            <div id="pane-beds" style="display:none">
+                <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.25rem">🛏️ Bed Control Panel</h1>
+
+                <div class="card"
+                    style="margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem">
+                    <div>
+                        <strong>🔒 Hidden Beds Toggle</strong>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">Protected reserve/emergency beds
+                        </div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600">
+                        <input type="checkbox" id="show-hidden-toggle" onchange="toggleHiddenView()"
+                            style="width:18px;height:18px;accent-color:var(--primary)">
+                        Show Hidden Beds
+                    </label>
+                </div>
+
+                <div class="card" style="margin-bottom:1.25rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+                        <strong style="font-size:0.9rem">🎬 Bed Control Map</strong>
+                        <span style="font-size:0.8rem;color:var(--text-muted)" id="bed-grid-note"></span>
+                    </div>
+                    <div class="legend" style="margin-bottom:0.75rem;font-size:0.8rem;display:flex;gap:0.75rem">
+                        <div style="display:flex;align-items:center;gap:0.25rem"><span class="legend-dot"
+                                style="background:#dcfce7;border-color:#16a34a"></span>
+                            Available</div>
+                        <div style="display:flex;align-items:center;gap:0.25rem"><span class="legend-dot"
+                                style="background:#fee2e2;border-color:#dc2626"></span>
+                            Occupied</div>
+                        <div style="display:flex;align-items:center;gap:0.25rem"><span class="legend-dot"
+                                style="background:#ffedd5;border-color:#f97316"></span> Booked (not admitted)</div>
+                        <div style="display:flex;align-items:center;gap:0.25rem"><span class="legend-dot"
+                                style="background:#fef9c3;border-color:#eab308"></span> Pending approval</div>
+                    </div>
+
+                    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem">
+                        <select class="form-control" id="grid-bedtype" onchange="loadAdminBedGrid()"
+                            style="flex:1;min-width:120px">
+                            <option value="All">🏥 All Beds</option>
+                            <option value="ICU">🫀 ICU</option>
+                            <option value="General">🛏️ General</option>
+                            <option value="Emergency">🚨 Emergency</option>
+                            <option value="Maternity">👶 Maternity</option>
+                        </select>
+                        <button class="btn btn-outline btn-sm" onclick="loadAdminBedGrid()">🔄 Refresh</button>
+                    </div>
+
+                    <div class="bed-grid-admin" id="admin-bed-grid"></div>
+                    <div id="bed-action-bar"
+                        style="display:none;margin-top:1rem;padding:0.75rem;background:#f0fdf4;border-radius:10px;display:none">
+                        <div id="selected-bed-label" style="font-weight:600;font-size:0.9rem;margin-bottom:0.5rem">
+                        </div>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap" id="bed-actions-btns"></div>
+                    </div>
+                </div>
+
+                <!-- Aggregate update -->
+                <div class="card">
+                    <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:0.75rem">📊 Generate/Hide Physical Beds
+                    </h3>
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem">
+                        <select class="form-control" id="u-bedtype" onchange="syncBedGenerateInput()">
+                            <option value="ICU">ICU</option>
+                            <option value="General">General</option>
+                            <option value="Emergency">Emergency</option>
+                            <option value="Maternity">Maternity</option>
+                        </select>
+                        <select class="form-control" id="u-field" onchange="syncBedGenerateInput()">
+                            <option value="total">Total Beds</option>
+                            <option value="hidden">Hidden Beds (Reserve)</option>
+                        </select>
+                        <input type="number" class="form-control" id="u-value" min="0" />
+                    </div>
+                    <div style="display:flex;gap:0.75rem;margin-top:0.75rem">
+                        <button class="btn btn-primary" onclick="updateBedCount()">Update & Generate Slots</button>
+                    </div>
+                    <div id="bed-update-msg" style="margin-top:0.5rem"></div>
+                </div>
+            </div>
+
+            <!-- ─── BOOKINGS ─── -->
+            <div id="pane-bookings" style="display:none">
+                <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.25rem">📋 Hospital Bookings</h1>
+                <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem">
+                    <select class="form-control" id="bk-filter" onchange="loadBookings()" style="width:auto">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="active">Active (Admitted)</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="discharged">Discharged</option>
+                    </select>
+                </div>
+                <div id="bookings-list"></div>
+            </div>
+
+            <!-- ─── TRANSFERS ─── -->
+            <div id="pane-transfers" style="display:none">
+                <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.25rem">🔄 Transfer Management</h1>
+
+                <!-- Shared Bed Grid for Transfers -->
+                <div class="card" style="margin-bottom:1.25rem">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                        <div>
+                            <h3 style="font-size:1rem;font-weight:700">🛏️ Beds</h3>
+                            <p style="font-size:0.83rem;color:var(--text-muted)">Drag an occupied slot to an External
+                                Drop Zone, or click properties for Internal Transfers.</p>
+                        </div>
+                        <div style="display:flex;gap:0.5rem">
+                            <select class="form-control" id="transfer-bedtype" onchange="loadTransferGrid()"
+                                style="width:150px">
+                                <option value="All">All Beds</option>
+                                <option value="ICU">ICU</option>
+                                <option value="General">General</option>
+                                <option value="Emergency">Emergency</option>
+                                <option value="Maternity">Maternity</option>
+                            </select>
+                            <button class="btn btn-ghost btn-sm" onclick="loadTransferGrid()">🔄</button>
+                        </div>
+                    </div>
+                    <div class="legend" style="margin-bottom:0.75rem">
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#dcfce7;border-color:#16a34a"></div>Empty (Target)
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-dot" style="background:#fee2e2;border-color:#dc2626"></div>Occupied
+                            (Source)
+                        </div>
+                    </div>
+                    <div class="bed-grid-admin" id="shared-transfer-grid"></div>
+                </div>
+
+                <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem">
+                    <button class="btn btn-outline" onclick="showTransferModal('internal')">🏠 Internal Transfer (Same
+                        Hospital)</button>
+                    <button class="btn btn-outline" onclick="showTransferModal('external')">🚛 External Transfer (Other
+                        Hospital)</button>
+                </div>
+
+                <div id="internal-transfer-panel" style="display:none">
+                    <div class="card" style="margin-bottom:1.25rem">
+                        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem">🏠 Internal Bed Transfer
+                        </h3>
+                        <p style="font-size:0.85rem;margin-bottom:0.75rem;color:var(--text-muted)">Click a source bed in
+                            the grid above, then click an empty target bed.</p>
+                        <div id="int-transfer-msg" style="margin-top:0.75rem"></div>
+                    </div>
+                </div>
+                <div id="external-transfer-panel" style="display:none">
+                    <div class="card" style="margin-bottom:1.25rem">
+                        <h3 style="font-size:1rem;font-weight:700;margin-bottom:0.5rem">🚛 External Drop Zones</h3>
+                        <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem">Drag an occupied bed
+                            slot from the grid above and drop it onto a destination hospital.
+                        </p>
+                        <div id="hospital-drop-zones"
+                            style="display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:1rem">
+                            <!-- Loaded via JS -->
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;margin-bottom:1.5rem">
+                        <div>
+                            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:0.75rem">📥 Incoming Transfer
+                                Requests</h3>
+                            <div id="incoming-transfers">
+                                <div class="alert alert-info">Loading…</div>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="font-size:0.95rem;font-weight:700;margin-bottom:0.75rem">📤 Outgoing Transfer
+                                Requests</h3>
+                            <div id="outgoing-transfers">
+                                <div class="alert alert-info">Loading…</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── QUEUE ─── -->
+            <div id="pane-queue" style="display:none">
+                <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.25rem">⏳ My Hospital's Queue</h1>
+                <div id="queue-list"></div>
+            </div>
+
+            <!-- ─── FRAUD ─── -->
+            <div id="pane-fraud" style="display:none">
+                <h1 style="font-size:1.4rem;font-weight:800;margin-bottom:1.25rem">🕵️ AI Fraud Detection</h1>
+                <div class="card" style="margin-bottom:1.25rem">
+                    <label class="form-label">Analyze a specific patient by User ID</label>
+                    <div style="display:flex;gap:0.75rem">
+                        <input type="text" class="form-control" id="fraud-uid"
+                            placeholder="Paste User ID or Patient ID…" />
+                        <button class="btn btn-primary btn-sm" onclick="runFraud()">🤖 AI Analyze</button>
+                    </div>
+                    <div id="fraud-result" style="margin-top:0.75rem"></div>
+                </div>
+                <h3 style="font-size:0.9rem;font-weight:700;margin-bottom:0.75rem">👥 All Patients — Risk Overview</h3>
+                <div id="fraud-overview"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Transfer type modal -->
+    <div class="transfer-type-modal" id="tr-type-modal">
+        <div class="tmodal">
+            <div style="font-size:2rem">🔄</div>
+            <div style="font-size:1.1rem;font-weight:800;margin-top:0.5rem">Select Transfer Type</div>
+            <div class="tmodal-opts">
+                <button onclick="pickTransferType('internal')">🏠 Internal<br /><small style="font-weight:400">Same
+                        hospital, no request</small></button>
+                <button onclick="pickTransferType('external')">🚛 External<br /><small style="font-weight:400">Drag to
+                        another hospital</small></button>
+            </div>
+            <button class="btn btn-ghost btn-sm"
+                onclick="document.getElementById('tr-type-modal').classList.remove('active')"
+                style="margin-top:1rem">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Hidden Bed Password Modal -->
+    <div id="hidden-bed-modal"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:9999;justify-content:center;align-items:center">
+        <div class="card" style="max-width:380px;width:90%;padding:2rem">
+            <div style="font-size:2rem;text-align:center">🔒</div>
+            <h3 style="text-align:center;font-size:1.05rem;margin:0.5rem 0 0.25rem">Hidden Bed — Admin Verification</h3>
+            <p style="color:var(--text-muted);font-size:0.83rem;text-align:center;margin-bottom:1rem">Enter your
+                hospital admin password to manually book this reserved bed.</p>
+            <div class="form-group">
+                <label class="form-label">Patient Name *</label>
+                <input type="text" class="form-control" id="hb-name" placeholder="Full name" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Patient Age</label>
+                <input type="number" class="form-control" id="hb-age" placeholder="Age" min="0" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason</label>
+                <input type="text" class="form-control" id="hb-reason" placeholder="e.g. Reserve emergency case" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Admin Password *</label>
+                <input type="password" class="form-control" id="hb-password" placeholder="Your login password" />
+            </div>
+            <div id="hb-error" class="alert alert-danger" style="display:none"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn btn-outline" style="flex:1" onclick="closeHiddenBedModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1" onclick="submitHiddenBedAdmit()">🔓 Book Hidden
+                    Bed</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Manual Admit Modal -->
+    <div id="manual-admit-modal"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center">
+        <div class="card" style="max-width:420px;width:90%;padding:2rem">
+            <h3 style="margin-top:0;font-size:1.1rem">➕ Manual Patient Admittance</h3>
+            <div class="form-group">
+                <label class="form-label">Patient Name *</label>
+                <input type="text" class="form-control" id="ma-name" placeholder="Full name" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Patient Age</label>
+                <input type="number" class="form-control" id="ma-age" placeholder="Age" min="0" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason for Admittance</label>
+                <input type="text" class="form-control" id="ma-reason"
+                    placeholder="e.g. Walk-in Emergency, Surgery, etc." />
+            </div>
+            <div id="ma-error" class="alert alert-danger" style="display:none"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn btn-outline" style="flex:1" onclick="closeManualAdmitModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1" onclick="submitManualAdmit()">✅ Admit Patient</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discharge Modal -->
+    <div id="discharge-modal"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center">
+        <div class="card" style="max-width:420px;width:90%;padding:2rem">
+            <h3 style="margin-top:0;font-size:1.1rem">🚪 Discharge Patient</h3>
+            <p style="color:var(--text-muted);font-size:0.85rem">Add discharge notes or doctor instructions. The patient
+                will receive a downloadable discharge receipt.</p>
+            <div class="form-group">
+                <label class="form-label">Discharge Notes / Instructions</label>
+                <textarea class="form-control" id="dc-notes" rows="3"
+                    placeholder="Optional notes for the patient's records…"></textarea>
+            </div>
+            <div id="dc-error" class="alert alert-danger" style="display:none"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn btn-outline" style="flex:1" onclick="closeDischargeModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1" onclick="submitDischarge()">🚪 Confirm Discharge</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- External Transfer Drop Modal -->
+    <div id="ext-transfer-drop-modal"
+        style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;justify-content:center;align-items:center">
+        <div class="card" style="max-width:420px;width:90%;padding:2rem">
+            <h3 style="margin-top:0;font-size:1.1rem">🚑 External Transfer Request</h3>
+            <div class="form-group">
+                <label class="form-label">Patient Name *</label>
+                <input type="text" class="form-control" id="etd-name" placeholder="Full name of patient" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason for Transfer *</label>
+                <input type="text" class="form-control" id="etd-reason" placeholder="e.g. Needs specialized care" />
+            </div>
+            <div id="etd-error" class="alert alert-danger" style="display:none"></div>
+            <div style="display:flex;gap:0.75rem;margin-top:1rem">
+                <button class="btn btn-outline" style="flex:1" onclick="closeExtDropModal()">Cancel</button>
+                <button class="btn btn-primary" style="flex:1" onclick="submitExtDropTransfer()">📤 Send
+                    Request</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+    <script>
+        let myHospital = null, allHospitals = [], intTransferFrom = null;
+
+        function showTab(name) {
+            ['overview', 'beds', 'bookings', 'transfers', 'queue', 'fraud'].forEach(t => {
+                document.getElementById('pane-' + t).style.display = t === name ? 'block' : 'none';
+                document.getElementById('tab-' + t).classList.toggle('active', t === name);
+            });
+
+            if (window.location.hash.replace('#', '') !== name) {
+                window.history.pushState(null, null, '#' + name);
+            }
+
+            if (name === 'overview') { loadOverview(); loadAdminBedGrid(); }
+            if (name === 'beds') loadAdminBedGrid();
+            if (name === 'bookings') loadBookings();
+            if (name === 'transfers') pickTransferType(document.getElementById('internal-transfer-panel').style.display === 'block' ? 'internal' : 'external');
+            if (name === 'queue') loadQueue();
+            if (name === 'fraud') loadFraudOverview();
+        }
+
+        async function init() {
+            if (!requireAuth()) return;
+            if (!requireAdmin()) return;
+            buildNavbar('dashboard');
+            initSocket();
+            const user = API.getUser();
+            if (user.hospitalId) {
+                myHospital = await API.get(`/api/hospitals/${user.hospitalId}`).catch(() => null);
+            }
+            allHospitals = await API.get('/api/hospitals').catch(() => []);
+
+            window.addEventListener('hashchange', () => {
+                const h = window.location.hash.replace('#', '');
+                if (h && document.getElementById('pane-' + h)) showTab(h);
+            });
+
+            const hash = window.location.hash.replace('#', '');
+            if (hash && document.getElementById('pane-' + hash)) {
+                showTab(hash);
+            } else {
+                showTab('overview');
+            }
+        }
+
+        async function loadOverview() {
+            if (!myHospital) {
+                document.getElementById('overview-stats').innerHTML = '<div class="alert alert-warning" style="grid-column:1/-1">No hospital linked to your account.</div>'; return;
+            }
+            const beds = myHospital.beds;
+            const avail = ['ICU', 'General', 'Emergency', 'Maternity'].reduce((s, t) => s + (beds[t]?.available || 0), 0);
+            document.getElementById('overview-stats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon">🛏️</div><div><div class="stat-value">${avail}</div><div class="stat-label">Available Beds</div></div></div>
+      <div class="stat-card"><div class="stat-icon red">🫀</div><div><div class="stat-value">${beds.ICU?.available || 0}</div><div class="stat-label">ICU</div></div></div>
+      <div class="stat-card"><div class="stat-icon yellow">🚨</div><div><div class="stat-value">${beds.Emergency?.available || 0}</div><div class="stat-label">Emergency</div></div></div>
+      <div class="stat-card"><div class="stat-icon blue">🛏️</div><div><div class="stat-value">${beds.General?.available || 0}</div><div class="stat-label">General</div></div></div>`;
+            // Load pending bookings
+            const bookings = await API.get('/api/bookings/all').catch(() => []);
+            const pending = bookings.filter(b => b.status === 'pending');
+            document.getElementById('pending-list').innerHTML = pending.length === 0
+                ? '<div class="alert alert-info" style="display:block">No pending approvals.</div>'
+                : pending.map(b => renderBookingRow(b)).join('');
+
+            // Load upcoming confirmed appointments
+            const upcoming = bookings.filter(b => b.status === 'confirmed');
+            const apptEl = document.getElementById('overview-appointments');
+            if (upcoming.length === 0) {
+                apptEl.innerHTML = '<div class="alert alert-info" style="display:block">No upcoming appointments.</div>';
+            } else {
+                apptEl.innerHTML = upcoming.map(b => `
+                    <div class="booking-row confirmed-row">
+                        <div style="flex:1">
+                            <div style="font-weight:700">${b.userId?.name || '—'} <span style="font-size:0.75rem;font-family:monospace;color:var(--primary)">${b.userId?.patientId || ''}</span></div>
+                            <div style="font-size:0.8rem;color:var(--text-muted)">${b.bedType} · Slot confirmed · ${fmtDate(b.createdAt)}</div>
+                            ${b.bedSlotId ? `<div style="font-size:0.75rem;color:var(--primary)">Bed ${b.bedSlotId.bedNumber} · Room ${b.bedSlotId.room}</div>` : ''}
+                        </div>
+                        <span class="badge badge-blue" style="align-self:center">Awaiting Admit</span>
+                    </div>`).join('');
+            }
+
+            // Load queue summary for overview
+            const queues = await API.get('/api/queue/all').catch(() => []);
+            const totalWaiting = queues.reduce((s, q) => s + (q.entries?.length || 0), 0);
+            // Update badges
+            const badgeOv = document.getElementById('badge-overview');
+            const badgeQ = document.getElementById('badge-queue');
+            const badgeOvQ = document.getElementById('overview-queue-badge');
+            [badgeOv, badgeQ, badgeOvQ].forEach(el => { if (!el) return; el.textContent = totalWaiting; el.style.display = totalWaiting > 0 ? 'inline' : 'none'; });
+
+            const qEl = document.getElementById('overview-queue');
+            if (queues.length === 0 || totalWaiting === 0) {
+                qEl.innerHTML = '<div class="alert alert-info" style="display:block">No patients currently in queue.</div>';
+            } else {
+                let qHtml = '';
+                queues.forEach(q => {
+                    if (!q.entries || q.entries.length === 0) return;
+                    const icon = q.bedType === 'ICU' ? '🫀' : q.bedType === 'Emergency' ? '🚨' : q.bedType === 'Maternity' ? '👶' : '🛏️';
+                    q.entries.forEach((e, idx) => {
+                        qHtml += `<div class="booking-row pending-row">
+                            <div style="flex:1">
+                                <div style="font-weight:700">${icon} ${q.bedType} Queue — Position #${idx + 1}</div>
+                                <div style="font-size:0.8rem;color:var(--text-muted)">${e.userId?.name || 'Unknown'} · ${e.userId?.patientId || ''}</div>
+                                ${e.reason ? `<div style="font-size:0.78rem;color:var(--text-muted)">Reason: ${e.reason}</div>` : ''}
+                            </div>
+                            <a onclick="showTab('queue')" class="btn btn-outline btn-sm" style="align-self:center">Manage →</a>
+                        </div>`;
+                    });
+                });
+                qEl.innerHTML = qHtml;
+            }
+
+            syncBedGenerateInput();
+        }
+
+        async function loadAdminBedGrid() {
+            if (!myHospital) return;
+            const bedType = document.getElementById('grid-bedtype')?.value || 'ICU';
+            const showHidden = document.getElementById('show-hidden-toggle')?.checked;
+            try {
+                let url = `/api/hospitals/${myHospital._id}/beds?bedType=${bedType}&showHidden=${showHidden}`;
+                const beds = await API.get(url);
+                const grid = document.getElementById('admin-bed-grid');
+                if (!beds.length) { grid.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">No beds found. Update bed counts to generate slots.</div>'; return; }
+                document.getElementById('bed-grid-note').textContent = `${beds.filter(b => b.status === 'available').length} available`;
+                const getAdminBedHtml = (b) => {
+                    let cls = '';
+                    if (b.status === 'available') cls = b.isHidden ? 'slot-h' : 'slot-a slot-drop-target';
+                    else if (b.status === 'occupied') cls = 'slot-o slot-drag';
+                    else if (b.status === 'unoccupied') cls = 'slot-u slot-drag';
+                    else cls = 'slot-p slot-drag';
+
+                    const icon = b.bedType === 'ICU' ? '🫀' : b.bedType === 'Emergency' ? '🚨' : b.bedType === 'Maternity' ? '👶' : '🛏️';
+                    const isHiddenRestricted = b.isHidden && b.status === 'available';
+                    const bkId = b.bookingId ? (b.bookingId._id || b.bookingId) : '';
+
+                    return `<div class="bed-slot-admin ${cls}" data-id="${b._id}" data-status="${b.status}" data-booking="${bkId}"
+          onclick="${isHiddenRestricted ? `hiddenBedClick('${b._id}','${b.bedType}')` : `onAdminBedClick('${b._id}','${b.status}','${bkId}','${b.bedNumber}','${b.bedType}')`}"
+          draggable="true" ondragstart="event.dataTransfer.setData('bedId','${b._id}')"
+          title="${b.bedNumber} | Room ${b.room} | Floor ${b.floor} | ${b.status}${isHiddenRestricted ? ' | HIDDEN — click to admit with password' : ''}">
+          <span style="font-size:1.1rem;line-height:1">${icon}</span>
+          <span style="font-size:0.6rem;margin-top:0.1rem">${b.bedNumber.split('-')[1]}</span>
+          ${b.isHidden ? '<span style="font-size:0.5rem">🔒</span>' : ''}
+        </div>`;
+                };
+
+                let html = '';
+                if (bedType === 'All') {
+                    ['ICU', 'General', 'Emergency', 'Maternity'].forEach(t => {
+                        const typeBeds = beds.filter(b => b.bedType === t);
+                        if (!typeBeds.length) return;
+                        const tIcon = t === 'ICU' ? '🫀' : t === 'Emergency' ? '🚨' : t === 'Maternity' ? '👶' : '🛏️';
+                        html += `<div style="width:100%;font-weight:700;font-size:0.9rem;border-bottom:1px solid var(--border);padding-bottom:0.3rem;margin-bottom:0.5rem;margin-top:0.5rem;color:var(--text-primary)">
+                                    ${tIcon} ${t} Beds
+                                 </div>`;
+                        html += typeBeds.map(b => getAdminBedHtml(b)).join('');
+                    });
+                } else {
+                    html = beds.map(b => getAdminBedHtml(b)).join('');
+                }
+                grid.innerHTML = html;
+            } catch (_) { }
+        }
+
+        function toggleHiddenView() { loadAdminBedGrid(); }
+
+        function onBedUpdate() {
+            if (document.getElementById('pane-beds').style.display !== 'none') loadAdminBedGrid();
+            if (document.getElementById('pane-transfers').style.display !== 'none') loadTransferGrid();
+            if (document.getElementById('pane-overview').style.display !== 'none') loadOverview();
+        }
+
+        async function onAdminBedClick(bedId, status, bookingId, bedNumber, bedType) {
+            const bar = document.getElementById('bed-action-bar');
+            const label = document.getElementById('selected-bed-label');
+            const btns = document.getElementById('bed-actions-btns');
+            label.innerHTML = `Selected: ${bedType} Bed ${bedNumber.split('-')[1]} (${status}) <span class="spinner" style="width:16px;height:16px;border-width:2px;display:none;vertical-align:middle" id="bed-action-spinner"></span>`;
+            let actions = '';
+
+            if (status === 'available') {
+                actions = `<button class="btn btn-primary btn-sm" onclick="manualAdmitPrompt('${bedId}','${bedType}')">➕ Admit Patient Manually</button>`;
+            } else if (status === 'pending' && bookingId) {
+                actions = `<button class="btn btn-primary btn-sm" onclick="adminRespond('${bookingId}','confirm')">✅ Confirm</button>
+                 <button class="btn btn-danger btn-sm" onclick="adminRespond('${bookingId}','reject')">❌ Reject</button>`;
+            } else if (status === 'unoccupied' && bookingId) {
+                actions = `<button class="btn btn-primary btn-sm" onclick="admitPatient('${bookingId}')">🏥 Mark Admitted</button>
+                 <button class="btn btn-danger btn-sm" onclick="adminCancelBk('${bookingId}')">Cancel</button>`;
+            } else if (status === 'occupied' && bookingId) {
+                actions = `<button class="btn btn-outline btn-sm" onclick="dischargePrompt('${bookingId}')">🚪 Discharge</button>`;
+            }
+            btns.innerHTML = actions || '<span style="color:var(--text-muted);font-size:0.83rem">No actions for this bed.</span>';
+            bar.style.display = 'block';
+
+            if (bookingId) {
+                document.getElementById('bed-action-spinner').style.display = 'inline-block';
+                try {
+                    const bk = await API.get(`/api/bookings/${bookingId}`);
+                    label.innerHTML = `
+                        <div style="font-weight:700">Selected: ${bedType} Bed ${bedNumber.split('-')[1]} (${status})</div>
+                        <div style="font-size:0.82rem;margin-top:0.4rem;background:#fff;padding:0.6rem;border-radius:6px;border:1px solid var(--border)">
+                            <div style="margin-bottom:0.2rem"><strong>👤 Patient:</strong> ${bk.userId?.name || 'Unknown'} <span style="font-family:monospace;color:var(--primary);margin-left:0.3rem">${bk.userId?.patientId || ''}</span></div>
+                            <div style="margin-bottom:0.2rem"><strong>❓ Reason:</strong> ${bk.reason}</div>
+                            ${bk.symptoms ? `<div style="color:var(--text-muted)"><strong>📝 Symptoms:</strong> ${bk.symptoms}</div>` : ''}
+                        </div>
+                    `;
+                } catch (err) {
+                    label.innerHTML += `<div style="color:red;font-size:0.82rem;margin-top:0.4rem;padding:0.4rem;background:#fff;border-radius:4px">Failed to load details: ${err.message}</div>`;
+                    document.getElementById('bed-action-spinner').style.display = 'none';
+                }
+            } else if (status !== 'available') {
+                label.innerHTML += `<div style="color:red;font-size:0.82rem;margin-top:0.4rem;padding:0.4rem;background:#fff;border-radius:4px">Warning: Bed reads as ${status} but no booking is attached. Use the refresh button.</div>`;
+            }
+        }
+
+        let _hiddenBedId = null, _hiddenBedType = null;
+        function hiddenBedClick(bedId, bedType) {
+            _hiddenBedId = bedId; _hiddenBedType = bedType;
+            document.getElementById('hb-name').value = '';
+            document.getElementById('hb-reason').value = '';
+            document.getElementById('hb-password').value = '';
+            document.getElementById('hb-error').style.display = 'none';
+            document.getElementById('hidden-bed-modal').style.display = 'flex';
+        }
+        function closeHiddenBedModal() { document.getElementById('hidden-bed-modal').style.display = 'none'; }
+        async function submitHiddenBedAdmit() {
+            const patientName = document.getElementById('hb-name').value.trim();
+            const password = document.getElementById('hb-password').value;
+            const errEl = document.getElementById('hb-error');
+            if (!patientName) { errEl.textContent = 'Patient name is required.'; errEl.style.display = 'block'; return; }
+            if (!password) { errEl.textContent = 'Admin password is required.'; errEl.style.display = 'block'; return; }
+            errEl.style.display = 'none';
+            try {
+                await API.post('/api/bookings/manual-admit', {
+                    bedSlotId: _hiddenBedId || undefined, // if null, server uses bedType
+                    bedType: _hiddenBedId ? undefined : _hiddenBedType,
+                    patientName,
+                    patientAge: document.getElementById('hb-age').value || null,
+                    reason: document.getElementById('hb-reason').value || 'Reserved bed admission',
+                    adminPassword: password,
+                    isHiddenBed: true
+                });
+                // Remove patient from queue if admitted from queue context
+                if (_pendingQueueId && _pendingQueueUserId) {
+                    await API.del(`/api/queue/remove/${_pendingQueueId}/${_pendingQueueUserId}`).catch(() => { });
+                    _pendingQueueId = null; _pendingQueueUserId = null;
+                }
+                closeHiddenBedModal();
+                showToast('Hidden bed booked successfully!', 'booking');
+                await Promise.all([loadAdminBedGrid(), loadOverview(), loadQueue(), loadBookings()]);
+            } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+        }
+
+        let _manualAdmitBedId = null, _manualAdmitBedType = null;
+        function manualAdmitPrompt(bedId, bedType) {
+            _manualAdmitBedId = bedId; _manualAdmitBedType = bedType;
+            _pendingQueueId = null; _pendingQueueUserId = null;
+            const nameEl = document.getElementById('ma-name');
+            nameEl.value = ''; nameEl.readOnly = false; nameEl.style.background = '';
+            document.getElementById('ma-age').value = '';
+            document.getElementById('ma-reason').value = '';
+            document.getElementById('ma-error').style.display = 'none';
+            const h3El = document.querySelector('#manual-admit-modal h3');
+            if (h3El) h3El.textContent = '➕ Manual Admittance';
+            const modal = document.getElementById('manual-admit-modal');
+            modal.style.display = 'flex';
+        }
+        function closeManualAdmitModal() {
+            document.getElementById('manual-admit-modal').style.display = 'none';
+            // Reset queue context when closed without submitting
+            _pendingQueueId = null; _pendingQueueUserId = null;
+        }
+        async function submitManualAdmit() {
+            const patientName = document.getElementById('ma-name').value.trim();
+            const errEl = document.getElementById('ma-error');
+            if (!patientName) { errEl.textContent = 'Patient name is required.'; errEl.style.display = 'block'; return; }
+            errEl.style.display = 'none';
+            try {
+                // When coming from queue, send bedType so the server auto-picks a bed
+                const payload = {
+                    patientName,
+                    patientAge: document.getElementById('ma-age').value || null,
+                    reason: document.getElementById('ma-reason').value || (_pendingQueueId ? 'Queue promotion' : 'Walk-in')
+                };
+                if (_pendingQueueId && !_manualAdmitBedId) {
+                    payload.bedType = _manualAdmitBedType; // let server auto-find a slot
+                } else {
+                    payload.bedSlotId = _manualAdmitBedId;
+                }
+                const result = await API.post('/api/bookings/manual-admit', payload);
+                // Remove patient from queue if admitted from queue context
+                const savedQueueId = _pendingQueueId;
+                const savedUserId = _pendingQueueUserId;
+                closeManualAdmitModal();
+                if (savedQueueId && savedUserId) {
+                    await API.del(`/api/queue/remove/${savedQueueId}/${savedUserId}`).catch(() => { });
+                }
+                const admittedTo = result.bedType || _manualAdmitBedType || '';
+                showToast(`Patient admitted to ${admittedTo} bed successfully!`, 'booking');
+                await Promise.all([loadAdminBedGrid(), loadOverview(), loadQueue(), loadBookings()]);
+            } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
+        }
+
+        async function adminRespond(bookingId, action) {
+            const note = action === 'reject' ? prompt('Reason for rejection (optional):') : '';
+            if (action === 'reject' && note === null) return;
+            try {
+                await API.post(`/api/bookings/admin-respond/${bookingId}`, { action, note: note || '' });
+                showToast(`Booking ${action}d!`, action === 'confirm' ? 'booking' : 'cancellation');
+                await Promise.all([loadAdminBedGrid(), loadOverview(), loadBookings(), loadQueue()]);
+            } catch (err) { showToast(err.message, 'fraud'); }
+        }
+
+        async function admitPatient(bookingId) {
+            try {
+                await API.post(`/api/bookings/admit/${bookingId}`, {});
+                showToast('Patient marked as admitted!', 'booking');
+                await Promise.all([loadAdminBedGrid(), loadBookings(), loadOverview(), loadQueue()]);
+            } catch (err) { showToast(err.message, 'fraud'); }
+        }
+
+        let _dischargeBkId = null;
+        function dischargePrompt(bookingId) {
+            _dischargeBkId = bookingId;
+            document.getElementById('dc-notes').value = '';
+            document.getElementById('dc-error').style.display = 'none';
+            document.getElementById('discharge-modal').style.display = 'flex';
+        }
+        function closeDischargeModal() { document.getElementById('discharge-modal').style.display = 'none'; }
+        async function submitDischarge() {
+            const note = document.getElementById('dc-notes').value;
+            const errEl = document.getElementById('dc-error');
+            errEl.style.display = 'none';
+            try {
+                await API.post(`/api/bookings/discharge/${_dischargeBkId}`, { note });
+                closeDischargeModal();
+                showToast('Patient discharged!', 'booking');
+                await Promise.all([loadAdminBedGrid(), loadOverview(), loadBookings(), loadQueue()]);
+            } catch (err) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+        }
+
+        async function adminCancelBk(bookingId) {
+            if (!confirm('Cancel this booking?')) return;
+            try {
+                await API.del(`/api/bookings/cancel/${bookingId}`);
+                showToast('Cancelled', 'cancellation');
+                await Promise.all([loadAdminBedGrid(), loadOverview(), loadBookings(), loadQueue()]);
+            }
+            catch (err) { showToast(err.message, 'fraud'); }
+        }
+
+        async function loadBookings() {
+            const filter = document.getElementById('bk-filter').value;
+            const list = document.getElementById('bookings-list');
+            try {
+                let bookings = await API.get('/api/bookings/all');
+                if (filter) bookings = bookings.filter(b => b.status === filter);
+                list.innerHTML = bookings.length === 0 ? '<div class="alert alert-info">No bookings found.</div>'
+                    : bookings.map(b => renderBookingRow(b, true)).join('');
+            } catch (err) { list.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+        }
+
+        function renderBookingRow(b, showFull = false) {
+            const statusCls = { pending: 'pending-row', confirmed: 'confirmed-row', active: 'active-row', unoccupied: 'unoccupied-row' };
+            const statusBadge = { pending: 'badge-yellow', confirmed: 'badge-blue', active: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', discharged: 'badge-purple' };
+            return `<div class="booking-row ${statusCls[b.status] || ''}">
+      <div style="flex:1">
+        <div style="font-weight:700">${b.userId?.name || '—'} <span style="font-size:0.75rem;font-family:monospace;color:var(--primary)">${b.userId?.patientId || ''}</span></div>
+        <div style="font-size:0.8rem;color:var(--text-muted)">${b.bedType} · ${b.reason} · ${fmtDate(b.createdAt)}</div>
+        ${b.bedSlotId ? `<div style="font-size:0.75rem;color:var(--primary)">Bed ${b.bedSlotId.bedNumber} · Room ${b.bedSlotId.room} · Floor ${b.bedSlotId.floor}</div>` : ''}
+        ${b.lowPriority ? '<span style="font-size:0.72rem;color:#f97316;font-weight:600">⚠️ LOW PRIORITY</span>' : ''}
+        ${b.adminNote ? `<div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.2rem">Note: ${b.adminNote}</div>` : ''}
+        ${b.userId?.flaggedForFraud ? '<span class="badge badge-red" style="font-size:0.7rem">🚨 Fraud Flagged</span>' : ''}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.4rem">
+        <span class="badge ${statusBadge[b.status] || 'badge-blue'}">${b.status}</span>
+        <div style="display:flex;gap:0.4rem;flex-wrap:wrap;justify-content:flex-end">
+          ${b.status === 'pending' ? `<button class="btn btn-primary btn-sm" onclick="adminRespond('${b._id}','confirm')">✅</button>
+            <button class="btn btn-danger btn-sm" onclick="adminRespond('${b._id}','reject')">❌</button>` : ''}
+          ${b.status === 'confirmed' ? `<button class="btn btn-outline btn-sm" onclick="admitPatient('${b._id}')">🏥 Admit</button>` : ''}
+          ${b.status === 'active' ? `<button class="btn btn-outline btn-sm" onclick="dischargePrompt('${b._id}')">🚪 Discharge</button>` : ''}
+          ${showFull && b.userId ? `<button class="btn btn-ghost btn-sm" onclick="setFraudUser('${b.userId._id}')">🕵️</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+        }
+
+        let intFrom = null;
+        async function loadTransferGrid() {
+            if (!myHospital) return;
+            const bedType = document.getElementById('transfer-bedtype').value;
+            const beds = await API.get(`/api/hospitals/${myHospital._id}/beds?bedType=${bedType}`).catch(() => []);
+            const grid = document.getElementById('shared-transfer-grid');
+            intFrom = null;
+            if (beds.length === 0) {
+                grid.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">No beds of this type available.</div>';
+                return;
+            }
+            const getTransferBedHtml = (b) => {
+                let cls = 'slot-h';
+                if (!b.isHidden) {
+                    cls = b.status === 'available' ? 'slot-a slot-drop-target'
+                        : b.status === 'occupied' ? 'slot-o slot-drag'
+                            : b.status === 'unoccupied' ? 'slot-u slot-drag'
+                                : 'slot-p slot-drag';
+                }
+                const icon = b.bedType === 'ICU' ? '🫀' : b.bedType === 'Emergency' ? '🚨' : b.bedType === 'Maternity' ? '👶' : '🛏️';
+                return `<div class="bed-slot-admin ${cls}" data-id="${b._id}" data-status="${b.status}" onclick="onIntTransferClick('${b._id}','${b.status}','${b.bedNumber}')"
+        ${(b.status === 'occupied' || b.status === 'unoccupied' || b.status === 'pending') && !b.isHidden ? `draggable="true" ondragstart="event.dataTransfer.setData('bedId','${b._id}')"` : ''}
+        ondragover="event.preventDefault()" 
+        ondrop="handleInternalDrop(event, '${b._id}')"
+        title="${b.bedNumber} · ${b.status}">
+        <span style="font-size:1.1rem">${icon}</span><span style="font-size:0.6rem">${b.bedNumber.split('-')[1]}</span>
+      </div>`;
+            };
+
+            let html = '';
+            if (bedType === 'All') {
+                ['ICU', 'General', 'Emergency', 'Maternity'].forEach(t => {
+                    const typeBeds = beds.filter(b => b.bedType === t);
+                    if (!typeBeds.length) return;
+                    const tIcon = t === 'ICU' ? '🫀' : t === 'Emergency' ? '🚨' : t === 'Maternity' ? '👶' : '🛏️';
+                    html += `<div style="width:100%;font-weight:700;font-size:0.9rem;border-bottom:1px solid var(--border);padding-bottom:0.3rem;margin-bottom:0.5rem;margin-top:0.5rem;color:var(--text-primary)">
+                                ${tIcon} ${t} Beds
+                             </div>`;
+                    html += typeBeds.map(b => getTransferBedHtml(b)).join('');
+                });
+            } else {
+                html = beds.map(b => getTransferBedHtml(b)).join('');
+            }
+            grid.innerHTML = html;
+        }
+
+        async function onIntTransferClick(bedId, status, bedNum) {
+            const msg = document.getElementById('int-transfer-msg');
+            if (!intFrom) {
+                if (status === 'available') { msg.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem">That bed is empty. Click an occupied bed first.</div>'; return; }
+                intFrom = { bedId, bedNum };
+                msg.innerHTML = `<div class="alert alert-info">📌 Source selected: <strong>Bed ${bedNum}</strong>. Now click an empty bed to transfer to.</div>`;
+            } else {
+                if (intFrom.bedId === bedId) { intFrom = null; msg.innerHTML = ''; return; }
+                if (status !== 'available') { msg.innerHTML = '<div class="alert alert-danger">Target bed must be empty (green).</div>'; return; }
+                try {
+                    await API.post(`/api/hospitals/${myHospital._id}/transfer-bed`, { fromBedId: intFrom.bedId, toBedId: bedId });
+                    msg.innerHTML = `<div class="alert alert-success">✅ Patient moved from Bed ${intFrom.bedNum} to Bed ${bedNum}.</div>`;
+                    intFrom = null;
+                    loadTransferGrid();
+                } catch (err) { msg.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+            }
+        }
+
+        async function handleInternalDrop(e, targetBedId) {
+            e.preventDefault();
+            const sourceBedId = e.dataTransfer.getData('bedId');
+            if (!sourceBedId || sourceBedId === targetBedId) return;
+
+            const msg = document.getElementById('int-transfer-msg');
+            try {
+                await API.post(`/api/hospitals/${myHospital._id}/transfer-bed`, { fromBedId: sourceBedId, toBedId: targetBedId });
+                msg.innerHTML = `<div class="alert alert-success">✅ Patient moved successfully!</div>`;
+                loadTransferGrid();
+            } catch (err) { msg.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+        }
+
+        function showTransferModal(type) { pickTransferType(type); }
+
+        function pickTransferType(type) {
+            document.getElementById('tr-type-modal').classList.remove('active');
+            document.getElementById('internal-transfer-panel').style.display = type === 'internal' ? 'block' : 'none';
+            document.getElementById('external-transfer-panel').style.display = type === 'external' ? 'block' : 'none';
+            loadTransferGrid();
+            if (type === 'external') { loadExternalHospitals(); loadIncomingTransfers(); loadOutgoingTransfers(); }
+        }
+
+        async function loadExternalHospitals() {
+            const list = document.getElementById('hospital-drop-zones');
+            const hList = allHospitals.filter(h => !myHospital || String(h._id) !== String(myHospital._id));
+
+            if (hList.length === 0) {
+                list.innerHTML = '<div class="alert alert-warning" style="grid-column:1/-1;margin-bottom:0">No other hospitals exist in the network. Register another hospital to perform external transfers.</div>';
+                const sel = document.getElementById('ext-to-hosp');
+                if (sel) sel.innerHTML = '<option value="">No other hospitals available</option>';
+                return;
+            }
+
+            list.innerHTML = hList.map(h => `
+        <div class="card h-drop-zone" data-id="${h._id}" ondragover="event.preventDefault();this.style.borderColor='var(--primary)';" 
+             ondragleave="this.style.borderColor='var(--border)';" ondrop="handleExternalDrop(event, '${h._id}')"
+             style="padding:0.75rem;border-style:dashed;text-align:center;cursor:default;transition:all 0.2s">
+          <div style="font-size:1.2rem">🏥</div>
+          <div style="font-weight:700;font-size:0.85rem">${h.name}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">${h.city}</div>
+        </div>
+      `).join('');
+
+            // Also update the dropdown for manual form use
+            const sel = document.getElementById('ext-to-hosp');
+            if (sel) sel.innerHTML = hList.map(h => `<option value="${h._id}">${h.name} — ${h.city}</option>`).join('');
+        }
+
+        let _extDropData = null;
+        async function handleExternalDrop(e, hospitalId) {
+            e.preventDefault();
+            e.target.style.borderColor = 'var(--border)';
+            const bedId = e.dataTransfer.getData('bedId');
+            if (!bedId) { showToast('Invalid drag data', 'fraud'); return; }
+
+            // Get patient info from the bed
+            const bed = await API.get(`/api/hospitals/${myHospital._id}/beds`).then(beds => beds.find(b => b._id === bedId));
+            if (!bed || !bed.bookingId) { showToast('No patient on this bed to transfer', 'fraud'); return; }
+
+            const b = bed.bookingId;
+            const patientName = b.userId?.name || '';
+
+            _extDropData = { hospitalId, bedType: bed.bedType, bookingId: b._id || b };
+
+            document.getElementById('etd-name').value = patientName;
+            document.getElementById('etd-reason').value = '';
+            document.getElementById('etd-error').style.display = 'none';
+            document.getElementById('ext-transfer-drop-modal').style.display = 'flex';
+        }
+
+        function closeExtDropModal() {
+            document.getElementById('ext-transfer-drop-modal').style.display = 'none';
+            _extDropData = null;
+        }
+
+        async function submitExtDropTransfer() {
+            const patientName = document.getElementById('etd-name').value.trim();
+            const reason = document.getElementById('etd-reason').value.trim() || 'Medical Necessity';
+            const errEl = document.getElementById('etd-error');
+
+            if (!patientName) { errEl.textContent = 'Patient name is required.'; errEl.style.display = 'block'; return; }
+            errEl.style.display = 'none';
+
+            try {
+                await API.post('/api/transfers/request', {
+                    toHospitalId: _extDropData.hospitalId,
+                    bedType: _extDropData.bedType,
+                    patientName,
+                    bookingId: _extDropData.bookingId,
+                    reason
+                });
+                closeExtDropModal();
+                showToast(`Transfer request sent to hospital!`, 'transfer');
+            } catch (err) { errEl.textContent = err.message; errEl.style.display = 'block'; }
+        }
+
+        async function sendExternalTransfer() {
+            const msg = document.getElementById('ext-transfer-msg');
+            try {
+                await API.post('/api/transfers/request', {
+                    toHospitalId: document.getElementById('ext-to-hosp').value,
+                    bedType: document.getElementById('ext-bedtype').value,
+                    patientName: document.getElementById('ext-patient').value,
+                    patientAge: document.getElementById('ext-age').value || null,
+                    reason: document.getElementById('ext-reason').value
+                });
+                msg.innerHTML = '<div class="alert alert-success">✅ Transfer request sent!</div>';
+                await Promise.all([loadIncomingTransfers(), loadAdminBedGrid(), loadOverview()]);
+            } catch (err) { msg.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+        }
+
+        async function loadIncomingTransfers() {
+            const list = document.getElementById('incoming-transfers');
+            const transfers = await API.get('/api/transfers').catch(() => []);
+            const incoming = transfers.filter(t => myHospital && String(t.toHospitalId?._id) === String(myHospital._id));
+            const badge = s => s === 'pending' ? 'badge-yellow' : s === 'accepted' ? 'badge-green' : 'badge-red';
+            list.innerHTML = incoming.length === 0 ? '<div class="alert alert-info">No incoming transfers.</div>'
+                : incoming.map(t => `<div class="booking-row ${t.status === 'pending' ? 'pending-row' : ''}">
+        <div style="flex:1"><div style="font-weight:700">${t.patientName} · ${t.bedType}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">From: ${t.fromHospitalId?.name || '?'} · ${t.reason}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(t.createdAt)}</div></div>
+        <div style="display:flex;gap:0.4rem;flex-direction:column;align-items:flex-end">
+          <span class="badge ${badge(t.status)}">${t.status}</span>
+          ${t.status === 'pending' ? `<div style="display:flex;gap:0.3rem"><button class="btn btn-primary btn-sm" onclick="respondTransfer('${t._id}','accept')">✅ Accept</button>
+            <button class="btn btn-danger btn-sm" onclick="respondTransfer('${t._id}','reject')">❌ Reject</button></div>` : ''}
+        </div>
+      </div>`).join('');
+        }
+
+        async function loadOutgoingTransfers() {
+            const list = document.getElementById('outgoing-transfers');
+            if (!list) return;
+            const transfers = await API.get('/api/transfers').catch(() => []);
+            const outgoing = transfers.filter(t => myHospital && String(t.fromHospitalId?._id) === String(myHospital._id));
+            const badge = s => s === 'pending' ? 'badge-yellow' : s === 'accepted' ? 'badge-green' : 'badge-red';
+            list.innerHTML = outgoing.length === 0 ? '<div class="alert alert-info">No outgoing transfers.</div>'
+                : outgoing.map(t => `<div class="booking-row">
+        <div style="flex:1"><div style="font-weight:700">${t.patientName} · ${t.bedType}</div>
+          <div style="font-size:0.8rem;color:var(--text-muted)">To: ${t.toHospitalId?.name || '?'} · ${t.reason}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${fmtDate(t.createdAt)}</div></div>
+        <span class="badge ${badge(t.status)}">${t.status}</span>
+      </div>`).join('');
+        }
+
+        async function respondTransfer(id, action) {
+            await API.post(`/api/transfers/${action}/${id}`, {}).catch(() => { });
+            showToast(`Transfer ${action}ed`, 'booking');
+            await Promise.all([loadIncomingTransfers(), loadAdminBedGrid(), loadOverview(), loadQueue()]);
+        }
+
+        async function loadQueue() {
+            const list = document.getElementById('queue-list');
+            try {
+                const queues = await API.get('/api/queue/all').catch(() => []);
+                if (myHospital) {
+                    myHospital = await API.get(`/api/hospitals/${myHospital._id}`).catch(() => myHospital);
+                }
+                if (queues.length === 0 || queues.every(q => q.entries.length === 0)) {
+                    list.innerHTML = '<div class="alert alert-info" style="display:block">No patients currently in queue for your hospital.</div>';
+                    return;
+                }
+                const catIcons = { ICU: '🫀', General: '🛏️', Emergency: '🚨', Maternity: '👶' };
+                const allCats = ['ICU', 'General', 'Emergency', 'Maternity'];
+                let html = '';
+                for (const q of queues) {
+                    if (!q.entries || q.entries.length === 0) continue;
+                    const icon = catIcons[q.bedType] || '🛏️';
+                    const sameAvail = myHospital?.beds?.[q.bedType]?.available || 0;
+                    const otherCats = allCats.filter(c => c !== q.bedType && (myHospital?.beds?.[c]?.available || 0) > 0);
+                    html += `<div class="card" style="margin-bottom:1rem">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem">
+                            <strong>${icon} ${q.bedType} Queue</strong>
+                            <span class="badge badge-blue">${q.entries.length} waiting</span>
+                        </div>`;
+                    q.entries.forEach((e, i) => {
+                        const userId = e.userId?._id || e.userId;
+                        const name = e.userId?.name || 'Unknown Patient';
+                        const pid = e.userId?.patientId || '';
+                        let actionBtns = '';
+                        // Encode name safely for inline onclick handler
+                        const safeName = name.replace(/'/g, "\\'");
+                        if (sameAvail > 0) {
+                            actionBtns += `<button class="btn btn-primary btn-sm" onclick="admitQueuePatient('${userId}','${safeName}','${q.bedType}','${q._id}')">✅ Admit (${icon} ${q.bedType})</button>`;
+                        }
+                        otherCats.forEach(c => {
+                            actionBtns += `<button class="btn btn-outline btn-sm" onclick="admitQueuePatient('${userId}','${safeName}','${c}','${q._id}')">${catIcons[c]} Move to ${c}</button>`;
+                        });
+                        actionBtns += `<button class="btn btn-ghost btn-sm" onclick="admitFromQueueToHidden('${userId}','${safeName}','${q.bedType}','${q._id}')">🔒 Hidden Bed</button>`;
+                        html += `<div style="padding:0.6rem;border-bottom:1px solid var(--border);font-size:0.85rem">
+                            <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.4rem">
+                                <span class="badge badge-green">#${i + 1}</span>
+                                <strong>${name}</strong>
+                                <span style="font-family:monospace;font-size:0.73rem;color:var(--primary)">${pid}</span>
+                                <span style="color:var(--text-muted);font-size:0.8rem">${e.userId?.email || ''}</span>
+                            </div>
+                            ${e.reason ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.4rem">Reason: ${e.reason}</div>` : ''}
+                            ${sameAvail === 0 && otherCats.length === 0 ? '<div style="font-size:0.78rem;color:#f59e0b;font-weight:600;margin-bottom:0.4rem">⚠️ No visible beds available — use Hidden Bed or wait.</div>' : ''}
+                            <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.3rem">${actionBtns}</div>
+                        </div>`;
+                    });
+                    html += `</div>`;
+                }
+                list.innerHTML = html;
+            } catch (err) {
+                list.innerHTML = `<div class="alert alert-danger" style="display:block">${err.message}</div>`;
+            }
+        }
+
+        let _pendingQueueId = null, _pendingQueueUserId = null;
+
+        function admitQueuePatient(userId, patientName, bedType, queueId) {
+            _manualAdmitBedId = null; // no specific slot - server will auto-pick
+            _manualAdmitBedType = bedType;
+            _pendingQueueId = queueId;
+            _pendingQueueUserId = userId;
+            // Pre-fill patient name from queue data & make it read-only
+            const nameEl = document.getElementById('ma-name');
+            nameEl.value = patientName || '';
+            nameEl.readOnly = !!patientName;
+            nameEl.style.background = patientName ? '#f0fdf4' : '';
+            document.getElementById('ma-age').value = '';
+            document.getElementById('ma-reason').value = 'Queue promotion';
+            document.getElementById('ma-error').style.display = 'none';
+            // Show context in the modal title
+            const h3El = document.querySelector('#manual-admit-modal h3');
+            if (h3El) h3El.textContent = `➕ Admit from Queue → ${bedType} Bed`;
+            document.getElementById('manual-admit-modal').style.display = 'flex';
+        }
+
+        function admitFromQueueToHidden(userId, patientName, bedType, queueId) {
+            _hiddenBedType = bedType;
+            _pendingQueueId = queueId;
+            _pendingQueueUserId = userId;
+            _hiddenBedId = null; // server will auto-find a hidden bed of this type
+            const nameEl = document.getElementById('hb-name');
+            nameEl.value = patientName || '';
+            nameEl.readOnly = !!patientName;
+            nameEl.style.background = patientName ? '#f0fdf4' : '';
+            document.getElementById('hb-age').value = '';
+            document.getElementById('hb-reason').value = 'Queue — hidden bed admission';
+            document.getElementById('hb-password').value = '';
+            document.getElementById('hb-error').style.display = 'none';
+            document.getElementById('hidden-bed-modal').style.display = 'flex';
+        }
+
+
+        async function loadFraudOverview() {
+            const bookings = await API.get('/api/bookings/all').catch(() => []);
+            const grouped = {};
+            bookings.forEach(b => { const uid = b.userId?._id; if (!uid) return; if (!grouped[uid]) grouped[uid] = { user: b.userId, cancel: 0, total: 0 }; grouped[uid].total++; if (b.status === 'cancelled') grouped[uid].cancel++; });
+            document.getElementById('fraud-overview').innerHTML = Object.values(grouped).map(g => {
+                const risk = g.cancel >= 4 ? 'High' : g.cancel >= 2 ? 'Medium' : 'Low';
+                return `<div style="padding:0.65rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+        <div style="flex:1"><div style="font-weight:600">${g.user?.name || '?'}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted)">${g.user?.email || ''} · PID: ${g.user?.patientId || '—'}</div></div>
+        <div style="font-size:0.82rem">${g.cancel}/${g.total} cancelled</div>
+        <span class="badge ${risk === 'High' ? 'badge-red' : risk === 'Medium' ? 'badge-yellow' : 'badge-green'}">${risk} risk</span>
+        <button class="btn btn-ghost btn-sm" onclick="setFraudUser('${g.user?._id}')">🕵️ Check</button>
+      </div>`;
+            }).join('') || '<div class="alert alert-info">No bookings yet.</div>';
+        }
+
+        function setFraudUser(uid) { showTab('fraud'); document.getElementById('fraud-uid').value = uid; runFraud(); }
+
+        async function runFraud() {
+            const uid = document.getElementById('fraud-uid').value.trim();
+            const res = document.getElementById('fraud-result');
+            if (!uid) return;
+            res.innerHTML = '<div style="color:var(--text-muted)"><div class="spinner"></div> Analyzing…</div>';
+            try {
+                const data = await API.post('/api/ai/fraud', { userId: uid });
+                res.innerHTML = `<div class="alert ${data.suspicious ? 'alert-danger' : 'alert-success'}">
+        <div><strong>${data.suspicious ? '⚠️ SUSPICIOUS' : '✅ Clean'}</strong> — ${data.userName}</div>
+        <div style="margin-top:0.3rem">${data.reason}</div>
+        <span class="badge ${data.riskLevel === 'High' ? 'badge-red' : data.riskLevel === 'Medium' ? 'badge-yellow' : 'badge-green'}">${data.riskLevel} Risk</span>
+      </div>`;
+            } catch (err) { res.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+        }
+
+        function syncBedGenerateInput() {
+            if (!myHospital) return;
+            const type = document.getElementById('u-bedtype').value;
+            const field = document.getElementById('u-field').value;
+            const val = myHospital.beds[type] ? (myHospital.beds[type][field] || 0) : 0;
+            document.getElementById('u-value').value = val;
+        }
+
+        async function updateBedCount() {
+            if (!myHospital) return;
+            const msg = document.getElementById('bed-update-msg');
+            try {
+                await API.patch(`/api/hospitals/${myHospital._id}/beds`, {
+                    bedType: document.getElementById('u-bedtype').value,
+                    field: document.getElementById('u-field').value,
+                    value: Number(document.getElementById('u-value').value)
+                });
+                myHospital = await API.get(`/api/hospitals/${myHospital._id}`);
+                msg.innerHTML = '<div class="alert alert-success" style="padding:0.5rem 0.75rem;font-size:0.85rem">Updated ✅</div>';
+                loadOverview(); loadAdminBedGrid();
+                setTimeout(() => msg.innerHTML = '', 3000);
+            } catch (err) { msg.innerHTML = `<div class="alert alert-danger">${err.message}</div>`; }
+        }
+
+        // Auto-scroll when dragging near top/bottom of the scrollable main container
+        let dragScrollInterval = null;
+        let isDraggingItem = false;
+
+        document.addEventListener('dragstart', (e) => {
+            if (e.target && e.target.draggable) {
+                isDraggingItem = true;
+            }
+        });
+        document.addEventListener('dragend', () => {
+            isDraggingItem = false;
+            if (dragScrollInterval) clearInterval(dragScrollInterval);
+            dragScrollInterval = null;
+        });
+
+        document.addEventListener('dragover', (e) => {
+            if (!isDraggingItem) return;
+            const mainEl = document.querySelector('.admin-main');
+            if (!mainEl) return;
+
+            const margin = 100;
+            const scrollSpeed = 25;
+            const rect = mainEl.getBoundingClientRect();
+
+            let direction = 0;
+            if (e.clientY - rect.top < margin) direction = -1;
+            else if (rect.bottom - e.clientY < margin) direction = 1;
+
+            if (direction !== 0) {
+                if (!dragScrollInterval) {
+                    dragScrollInterval = setInterval(() => {
+                        mainEl.scrollTop += direction * scrollSpeed;
+                    }, 30);
+                }
+            } else {
+                if (dragScrollInterval) {
+                    clearInterval(dragScrollInterval);
+                    dragScrollInterval = null;
+                }
+            }
+        });
+
+        init();
+    </script>
+
+    <!-- MediBot Chatbot Widget -->
+    <div id="chatbot-container"></div>
+    <script>
+        fetch('/chatbot-widget.html').then(r => r.text()).then(html => {
+            document.getElementById('chatbot-container').innerHTML = html;
+            document.getElementById('chatbot-container').querySelectorAll('script').forEach(s => {
+                const ns = document.createElement('script');
+                ns.textContent = s.textContent;
+                document.body.appendChild(ns);
+            });
+        });
+    </script>
+</body>
+
+</html>
