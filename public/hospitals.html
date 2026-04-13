@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hospital List — MediTrack</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+    <nav class="navbar" id="navbar"></nav>
+
+    <div class="page-header">
+        <h1>🏥 Find Available Beds</h1>
+        <p>Live bed availability across all registered hospitals</p>
+    </div>
+
+    <div class="container" style="margin-top:1.5rem">
+        <!-- Current Booking Status (shows if user has active/pending booking) -->
+        <div id="current-booking-overview" style="display:none;margin-bottom:1.5rem"></div>
+
+        <!-- Controls -->
+        <div class="card" style="padding:1rem 1.5rem;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap">
+            <div class="form-group" style="margin:0;flex:1;min-width:160px">
+                <label class="form-label">Bed Type</label>
+                <select class="form-control" id="filter-bedtype" onchange="loadHospitals()">
+                    <option value="">All Types</option>
+                    <option value="ICU">🫀 ICU</option>
+                    <option value="General">🛏️ General</option>
+                    <option value="Emergency">🚨 Emergency</option>
+                    <option value="Maternity">👶 Maternity</option>
+                </select>
+            </div>
+            <label
+                style="display:flex;align-items:center;gap:0.6rem;cursor:pointer;white-space:nowrap;font-weight:600;font-size:0.9rem;padding-top:1.2rem">
+                <input type="checkbox" id="available-only" onchange="loadHospitals()"
+                    style="width:18px;height:18px;accent-color:var(--primary);cursor:pointer" />
+                Show available beds only
+            </label>
+            <div id="last-updated"
+                style="font-size:0.75rem;color:var(--text-muted);padding-top:1.2rem;margin-left:auto"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid-4" style="margin-top:1.25rem">
+            <div class="stat-card">
+                <div class="stat-icon">🏥</div>
+                <div>
+                    <div class="stat-value" id="stat-hospitals">—</div>
+                    <div class="stat-label">Hospitals</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🫀</div>
+                <div>
+                    <div class="stat-value" id="stat-icu">—</div>
+                    <div class="stat-label">ICU Available</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue">🛏️</div>
+                <div>
+                    <div class="stat-value" id="stat-general">—</div>
+                    <div class="stat-label">General Available</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red">🚨</div>
+                <div>
+                    <div class="stat-value" id="stat-emergency">—</div>
+                    <div class="stat-label">Emergency Available</div>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin:1.25rem 0;display:flex;justify-content:space-between;align-items:center">
+            <h2 style="font-size:1.05rem;font-weight:700">Results <span id="result-count"
+                    style="color:var(--text-muted);font-weight:400"></span></h2>
+        </div>
+
+        <div class="grid-2" id="hospital-grid">
+            <div style="grid-column:1/-1;text-align:center;padding:3rem">
+                <div class="spinner"></div>
+            </div>
+        </div>
+    </div>
+
+    <button class="emergency-fab" onclick="window.location.href='/booking.html?reason=Emergency'"
+        title="Emergency">🚨</button>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+    <script>
+        let activeRecordId = null;
+
+        function onBedUpdate() { loadHospitals(); }
+
+        async function loadHospitals() {
+            const bedType = document.getElementById('filter-bedtype').value;
+            const availableOnly = document.getElementById('available-only').checked;
+            try {
+                let url = '/api/hospitals';
+                if (availableOnly) url += '?availableOnly=true';
+                let hospitals = await API.get(url);
+                if (bedType) hospitals = hospitals.filter(h => (h.beds[bedType]?.available || 0) > 0 || !availableOnly);
+                if (bedType && !availableOnly) hospitals = hospitals.filter(h => (h.beds[bedType]?.visible || 0) > 0);
+
+                document.getElementById('result-count').textContent = `(${hospitals.length})`;
+                document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+                // Stats from unfiltered data
+                const all = await API.get('/api/hospitals');
+                document.getElementById('stat-hospitals').textContent = all.length;
+                document.getElementById('stat-icu').textContent = all.reduce((s, h) => s + (h.beds.ICU?.available || 0), 0);
+                document.getElementById('stat-general').textContent = all.reduce((s, h) => s + (h.beds.General?.available || 0), 0);
+                document.getElementById('stat-emergency').textContent = all.reduce((s, h) => s + (h.beds.Emergency?.available || 0), 0);
+
+                const grid = document.getElementById('hospital-grid');
+                if (hospitals.length === 0) {
+                    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--text-muted)">
+          <div style="font-size:3rem">🏥</div><p>No hospitals found.</p>
+          <button class="btn btn-outline" onclick="document.getElementById('available-only').checked=false;loadHospitals()">Show all hospitals</button>
+        </div>`; return;
+                }
+                grid.innerHTML = hospitals.map(h => renderCard(h, bedType)).join('');
+            } catch (err) {
+                document.getElementById('hospital-grid').innerHTML = `<div style="grid-column:1/-1" class="alert alert-danger">${err.message}</div>`;
+            }
+        }
+
+        function renderCard(h, filterType) {
+            const types = filterType ? [filterType] : ['ICU', 'General', 'Emergency', 'Maternity'];
+            const icons = { ICU: '🫀', General: '🛏️', Emergency: '🚨', Maternity: '👶' };
+
+            const bedRows = types.map(type => {
+                const bed = h.beds[type];
+                if (!bed || bed.total === 0) return '';
+                const avail = bed.available || 0;
+                // Public total = total minus reserved hidden beds
+                const publicTotal = (bed.total || 0) - (bed.hidden || 0);
+                if (publicTotal <= 0) return '';
+                const pct = Math.round((avail / publicTotal) * 100);
+                const cls = bedBarClass(avail, publicTotal);
+                return `<div class="bed-row">
+        <div class="bed-row-header">
+          <span class="bed-type-label">${icons[type]} ${type}</span>
+          <span class="bed-count ${avail === 0 ? 'zero' : ''}" title="${avail} available out of ${publicTotal} public beds (hidden beds excluded)">${avail} / ${publicTotal}</span>
+        </div>
+        <div class="progress-wrap"><div class="progress-bar ${cls}" style="width:${pct}%"></div></div>
+      </div>`;
+            }).join('');
+
+            const allAvail = ['ICU', 'General', 'Emergency', 'Maternity'].reduce((s, t) => s + (h.beds[t]?.available || 0), 0);
+            const badge = allAvail > 0 ? `<span class="badge badge-green">✅ Available</span>` : `<span class="badge badge-red">🔴 Full</span>`;
+
+            return `<div class="hospital-card fade-in">
+      <div class="hcard-header">
+        <div><div class="hcard-title">${h.name}</div><div class="hcard-city">📍 ${h.city}${h.address ? ' · ' + h.address : ''}</div></div>
+        ${badge}
+      </div>
+      <div class="hcard-body">${bedRows || '<div style="color:var(--text-muted);font-size:0.85rem">No beds in this category</div>'}</div>
+      <div class="hcard-footer">
+        ${activeRecordId
+                    ? `<button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="confirmCancelAndBook('${h._id}')">📋 Book Bed</button>`
+                    : allAvail > 0
+                        ? `<a href="/booking.html?hospitalId=${h._id}" class="btn btn-primary btn-sm" style="flex:1;justify-content:center">📋 Book Bed</a>`
+                        : `<a href="/queue.html?hospitalId=${h._id}" class="btn btn-outline btn-sm" style="flex:1;justify-content:center">⏳ Join Queue (Beds Full)</a>`
+                }
+      </div>
+    </div>`;
+        }
+
+        async function confirmCancelAndBook(hospitalId) {
+            showCustomConfirm('You already have an active request. Do you want to cancel the old one and place a new one here?', async () => {
+                try {
+                    await API.del(`/api/bookings/cancel/${activeRecordId}`);
+                    window.location.href = `/booking.html?hospitalId=${hospitalId}`;
+                } catch (e) {
+                    alert('Error cancelling booking: ' + e.message);
+                }
+            });
+        }
+
+        async function init() {
+            buildNavbar('hospitals');
+            initSocket();
+            await loadCurrentBooking();
+            loadHospitals();
+        }
+
+        async function loadCurrentBooking() {
+            try {
+                const freshMe = await API.get('/api/auth/me');
+                if (freshMe) API.setAuth(API.getToken(), freshMe);
+            } catch (e) { }
+            const user = API.getUser();
+            if (!user) return;
+            try {
+                const bookings = await API.get('/api/bookings/my');
+                const active = bookings.find(b => ['pending', 'confirmed', 'occupied', 'unoccupied', 'active'].includes(b.status));
+                const overview = document.getElementById('current-booking-overview');
+                if (!active) {
+                    overview.style.display = 'none';
+                    activeRecordId = null;
+                    return;
+                }
+                activeRecordId = active._id;
+
+                const statusBadge = { pending: 'badge-yellow', confirmed: 'badge-blue', active: 'badge-green', unoccupied: 'badge-yellow', discharged: 'badge-purple' };
+                let borderColor = 'var(--primary)';
+                if (active.status === 'pending') borderColor = '#f59e0b';
+                if (active.status === 'active') borderColor = '#10b981';
+
+                let statusText = active.status.toUpperCase();
+                if (active.status === 'confirmed') statusText = 'SLOT CONFIRMED, ADMIT PENDING';
+                if (active.status === 'active') statusText = 'ADMITTED';
+
+                let timerHtml = '';
+                if (active.status === 'confirmed' && active.timerStartedAt) {
+                    const timerEnd = new Date(active.timerStartedAt).getTime() + (3 * 60 * 1000);
+                    timerHtml = ` <span style="margin-left:0.5rem;font-weight:700;color:#ef4444;" id="ar-timer-container">⏱️ Admittance Timer: <span id="ar-countdown" data-end="${timerEnd}">--:--</span></span>`;
+                }
+
+                overview.innerHTML = `
+          <div class="card fade-in" style="background:#f8fafc;padding:1.25rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;border:1px solid ${borderColor};border-left:5px solid ${borderColor}">
+            <div style="flex:1">
+              <div style="font-size:0.75rem;font-weight:800;color:${borderColor};text-transform:uppercase;margin-bottom:0.25rem">Your Active Record</div>
+              <h2 style="font-size:1.1rem;font-weight:800;margin:0">${active.hospitalId?.name || 'Hospital'} <span style="font-weight:400;color:var(--text-muted);font-size:0.85rem">· ${active.bedType}</span></h2>
+              <div style="font-size:0.82rem;color:var(--text-muted);margin-top:0.2rem">Status: <span class="badge ${statusBadge[active.status] || 'badge-blue'}" style="font-size:0.7rem">${statusText}</span>${timerHtml}</div>
+            </div>
+            <div style="display:flex;gap:0.75rem">
+              <a href="/booking.html?id=${active._id}" class="btn btn-primary btn-sm">View & Receipt</a>
+              <a href="/score.html" class="btn btn-outline btn-sm">Safety Score</a>
+            </div>
+          </div>
+        `;
+                overview.style.display = 'block';
+
+                if (active.status === 'confirmed' && active.timerStartedAt) {
+                    const cdEl = document.getElementById('ar-countdown');
+                    if (cdEl) {
+                        const tend = parseInt(cdEl.getAttribute('data-end'));
+                        const interval = setInterval(() => {
+                            const remaining = Math.max(0, tend - new Date().getTime());
+                            if (remaining === 0) {
+                                clearInterval(interval);
+                                const tc = document.getElementById('ar-timer-container');
+                                if (tc) tc.innerHTML = '<span style="color:var(--text-muted)">Timer expired</span>';
+                                loadCurrentBooking(); // reload to grab the newly cancelled state from backend
+                                return;
+                            }
+                            const m = Math.floor(remaining / 60000);
+                            const s = Math.floor((remaining % 60000) / 1000);
+                            const cd = document.getElementById('ar-countdown');
+                            if (cd) cd.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+                        }, 500);
+                    }
+                }
+
+            } catch (_) { }
+        }
+
+        // Auto-refresh on real-time bed update events from server
+        function onBedUpdate() { loadHospitals(); }
+
+        init();
+        setInterval(loadHospitals, 15000); // Poll every 15s as fallback
+    </script>
+
+    <!-- MediBot Chatbot Widget -->
+    <div id="chatbot-container"></div>
+    <script>
+        fetch('/chatbot-widget.html').then(r => r.text()).then(html => {
+            document.getElementById('chatbot-container').innerHTML = html;
+            document.getElementById('chatbot-container').querySelectorAll('script').forEach(s => {
+                const ns = document.createElement('script');
+                ns.textContent = s.textContent;
+                document.body.appendChild(ns);
+            });
+        });
+    </script>
+</body>
+
+</html>
