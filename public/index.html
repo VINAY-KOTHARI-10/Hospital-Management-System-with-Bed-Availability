@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MediTrack — Hospital Management System</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏥</text></svg>">
+    <meta name="description"
+        content="Real-time hospital bed availability, booking, queue management, and AI-powered severity detection." />
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+
+    <!-- HERO (shown when not logged in) -->
+    <div id="hero-section">
+        <nav class="navbar" id="navbar"></nav>
+        <div class="hero">
+            <div
+                style="display:flex; align-items:center; justify-content:space-between; gap:3rem; max-width:1200px; margin:0 auto; flex-wrap:wrap;">
+                <div class="hero-content fade-in" style="flex:1; min-width:320px; text-align:left;">
+                    <h1 style="text-align:left">Smart Hospital Bed Management</h1>
+                    <p style="text-align:left">Real-time bed availability, intelligent queue management, AI-powered
+                        severity detection, and
+                        inter-hospital transfers — all in one platform.</p>
+                    <div class="hero-btns" style="justify-content:flex-start">
+                        <button class="btn btn-primary btn-lg" onclick="showAuth('login')">🔑 Login</button>
+                        <button class="btn btn-outline btn-lg" onclick="showAuth('register')">📝 Register</button>
+                    </div>
+                    <div style="margin-top:2.5rem;display:flex;gap:2rem;justify-content:flex-start;flex-wrap:wrap;">
+                        <div style="text-align:center">
+                            <div style="font-size:2rem;font-weight:800;color:var(--primary)">7+</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted)">Hospitals</div>
+                        </div>
+                        <div style="text-align:center">
+                            <div style="font-size:2rem;font-weight:800;color:var(--primary)">150+</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted)">Beds Tracked</div>
+                        </div>
+                        <div style="text-align:center">
+                            <div style="font-size:2rem;font-weight:800;color:var(--primary)">24/7</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted)">Availability</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="hero-image fade-in" style="flex:1; min-width:320px; display:flex; justify-content:center;">
+                    <img src="/images/hero_medical.png" alt="Medical Illustration" class="img-hover-effect"
+                        style="max-width:100%; border-radius:24px; box-shadow:0 25px 50px rgba(0,0,0,0.15);" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTH SECTION -->
+    <div id="auth-section" style="display:none">
+        <nav class="navbar" id="navbar2">
+            <a href="/" class="navbar-brand"><span class="logo-icon">🏥</span> MediTrack</a>
+            <button class="btn btn-ghost btn-sm" onclick="showHero()">← Back</button>
+        </nav>
+        <div class="auth-container">
+
+            <!-- ══════════ LOGIN FORM ══════════ -->
+            <div class="auth-card fade-in" id="login-card">
+                <div class="auth-card-top-bar"></div>
+                <div class="auth-card-body">
+                    <h2>Welcome back 👋</h2>
+                    <p class="subtitle">Login to access your dashboard</p>
+
+                    <div class="form-group">
+                        <label class="form-label">Login as</label>
+                        <select class="form-control" id="login-role">
+                            <option value="user">👤 Patient / User</option>
+                            <option value="admin">🏥 Hospital Admin</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email address</label>
+                        <input type="email" class="form-control" id="login-email" placeholder="you@example.com" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" id="login-password" placeholder="Your password" />
+                    </div>
+                    <div id="login-error" class="alert alert-danger" style="display:none"></div>
+                    <button class="btn btn-primary"
+                        style="width:100%;padding:0.8rem;font-size:1rem;letter-spacing:0.3px" onclick="doLogin()"
+                        id="login-btn">Login →</button>
+                    <div class="auth-divider">or</div>
+                    <div class="auth-switch">No account? <a href="#" onclick="showAuth('register')">Register here</a>
+                    </div>
+
+                    <!-- Google Login Support -->
+                    <div id="g_id_onload"
+                        data-client_id="416897944372-kfcnt23ctjvk9d0l44ki5k5uera2l5ga.apps.googleusercontent.com"
+                        data-context="signin" data-ux_mode="popup" data-callback="handleGoogleLogin"
+                        data-auto_prompt="false">
+                    </div>
+                    <div class="g_id_signin" data-type="standard" data-shape="rectangular" data-theme="outline"
+                        data-text="signin_with" data-size="large" data-logo_alignment="center"
+                        style="margin-top:1.25rem; display:flex; justify-content:center; width:100%">
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══════════ REGISTER FORM ══════════ -->
+            <div class="auth-card fade-in" id="register-card" style="display:none;max-width:600px">
+                <div class="auth-card-top-bar"></div>
+                <div class="auth-card-body">
+                    <h2>Create account 📝</h2>
+                    <p class="subtitle">Join MediTrack and start managing your health</p>
+
+                    <!-- Step indicator -->
+                    <div style="display:flex;gap:0.5rem;margin-bottom:1.75rem;align-items:center" id="step-indicator">
+                        <div style="flex:1;text-align:center">
+                            <div id="step1-dot"
+                                style="height:5px;background:var(--primary);border-radius:99px;margin-bottom:0.35rem;transition:background 0.3s">
+                            </div>
+                            <span style="font-size:0.72rem;font-weight:600;color:var(--primary)" id="step1-label">①
+                                Account Info</span>
+                        </div>
+                        <div style="flex:1;text-align:center">
+                            <div id="step2-dot"
+                                style="height:5px;background:var(--border-strong);border-radius:99px;margin-bottom:0.35rem;transition:background 0.3s">
+                            </div>
+                            <span style="font-size:0.72rem;font-weight:600;color:var(--text-muted)" id="step2-label">②
+                                Hospital Setup</span>
+                        </div>
+                    </div>
+
+                    <!-- STEP 1: Account info -->
+                    <div id="reg-step1">
+                        <div class="form-group">
+                            <label class="form-label">Full name</label>
+                            <input type="text" class="form-control" id="reg-name" placeholder="Your full name" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Email address</label>
+                            <input type="email" class="form-control" id="reg-email" placeholder="you@example.com" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Password</label>
+                            <input type="password" class="form-control" id="reg-password"
+                                placeholder="Min 6 characters" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Register as</label>
+                            <select class="form-control" id="reg-role" onchange="onRoleChange()">
+                                <option value="user">👤 Patient / User</option>
+                                <option value="admin">🏥 Hospital Admin</option>
+                            </select>
+                        </div>
+                        <div id="reg-step1-error" class="alert alert-danger" style="display:none"></div>
+                        <button class="btn btn-primary" style="width:100%;padding:0.8rem;font-size:1rem" id="step1-btn"
+                            onclick="goStep2()">Next →</button>
+                        <div class="auth-divider">or</div>
+                        <div class="auth-switch">Have an account? <a href="#" onclick="showAuth('login')">Login here</a>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2: Hospital setup (admin only) -->
+                    <div id="reg-step2" style="display:none">
+                        <div class="alert alert-info" style="margin-bottom:1.25rem">
+                            🏥 <strong>Set up your hospital</strong><br />
+                            <span style="font-size:0.85rem">This creates a new hospital in the system. Patients will see
+                                it
+                                immediately after you register.</span>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+                            <div class="form-group" style="grid-column:1/-1;margin:0">
+                                <label class="form-label">Hospital Name *</label>
+                                <input type="text" class="form-control" id="hosp-name"
+                                    placeholder="e.g. City General Hospital" />
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">City *</label>
+                                <input type="text" class="form-control" id="hosp-city" placeholder="e.g. Delhi" />
+                            </div>
+                            <div class="form-group" style="margin:0">
+                                <label class="form-label">Phone number</label>
+                                <input type="text" class="form-control" id="hosp-phone"
+                                    placeholder="+91-11-0000-0000" />
+                            </div>
+                            <div class="form-group" style="grid-column:1/-1;margin:0">
+                                <label class="form-label">Address</label>
+                                <input type="text" class="form-control" id="hosp-address"
+                                    placeholder="Full street address" />
+                            </div>
+                        </div>
+
+                        <div style="margin:1.25rem 0 0.5rem;font-size:0.88rem;font-weight:700;color:var(--text)">🛏️ Bed
+                            Availability</div>
+                        <div class="alert alert-warning" style="margin-bottom:1rem;font-size:0.82rem;display:block">
+                            Set the <strong>total</strong> beds and <strong>hidden/reserve</strong> beds (for
+                            emergencies).
+                            Visible = Total − Hidden.
+                        </div>
+
+                        <!-- Bed type rows -->
+                        <div
+                            style="border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:1.25rem">
+                            <div
+                                style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;background:#f0fdf4;padding:0.5rem 0.75rem;font-size:0.78rem;font-weight:700;color:var(--text-muted);gap:0.5rem">
+                                <span>Bed Type</span><span>Total Beds</span><span>Hidden (Reserve)</span><span>Visible
+                                    to
+                                    Users</span>
+                            </div>
+
+                            <div id="bed-input-ICU" class="bed-input-row"
+                                style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;padding:0.65rem 0.75rem;gap:0.5rem;border-top:1px solid var(--border);align-items:center">
+                                <span style="font-weight:600;font-size:0.88rem">🫀 ICU</span>
+                                <input type="number" class="form-control" id="bed-ICU-total" min="0" value="0"
+                                    oninput="calcVisible('ICU')" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <input type="number" class="form-control" id="bed-ICU-hidden" min="0" value="0"
+                                    oninput="calcVisible('ICU')" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <span id="bed-ICU-visible"
+                                    style="font-weight:700;color:var(--primary);font-size:0.95rem">0</span>
+                            </div>
+
+                            <div class="bed-input-row"
+                                style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;padding:0.65rem 0.75rem;gap:0.5rem;border-top:1px solid var(--border);align-items:center">
+                                <span style="font-weight:600;font-size:0.88rem">🛏️ General</span>
+                                <input type="number" class="form-control" id="bed-General-total" min="0" value="0"
+                                    oninput="calcVisible('General')" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <input type="number" class="form-control" id="bed-General-hidden" min="0" value="0"
+                                    oninput="calcVisible('General')" style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <span id="bed-General-visible"
+                                    style="font-weight:700;color:var(--primary);font-size:0.95rem">0</span>
+                            </div>
+
+                            <div class="bed-input-row"
+                                style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;padding:0.65rem 0.75rem;gap:0.5rem;border-top:1px solid var(--border);align-items:center;background:#fff5f5">
+                                <span style="font-weight:600;font-size:0.88rem">🚨 Emergency</span>
+                                <input type="number" class="form-control" id="bed-Emergency-total" min="0" value="0"
+                                    oninput="calcVisible('Emergency')"
+                                    style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <input type="number" class="form-control" id="bed-Emergency-hidden" min="0" value="0"
+                                    oninput="calcVisible('Emergency')"
+                                    style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <span id="bed-Emergency-visible"
+                                    style="font-weight:700;color:var(--danger);font-size:0.95rem">0</span>
+                            </div>
+
+                            <div class="bed-input-row"
+                                style="display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;padding:0.65rem 0.75rem;gap:0.5rem;border-top:1px solid var(--border);align-items:center">
+                                <span style="font-weight:600;font-size:0.88rem">👶 Maternity</span>
+                                <input type="number" class="form-control" id="bed-Maternity-total" min="0" value="0"
+                                    oninput="calcVisible('Maternity')"
+                                    style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <input type="number" class="form-control" id="bed-Maternity-hidden" min="0" value="0"
+                                    oninput="calcVisible('Maternity')"
+                                    style="padding:0.4rem 0.6rem;font-size:0.85rem" />
+                                <span id="bed-Maternity-visible"
+                                    style="font-weight:700;color:var(--primary);font-size:0.95rem">0</span>
+                            </div>
+                        </div>
+
+                        <div id="reg-step2-error" class="alert alert-danger" style="display:none"></div>
+                        <div style="display:flex;gap:0.75rem">
+                            <button class="btn btn-ghost" onclick="goStep1()">← Back</button>
+                            <button class="btn btn-primary" style="flex:1;padding:0.8rem;font-size:1rem"
+                                onclick="doRegister()" id="reg-btn">🏥 Register
+                                Hospital & Create Account</button>
+                        </div>
+                    </div>
+
+                    <!-- STEP 2 for user (direct submit) -->
+                    <div id="reg-user-submit" style="display:none">
+                        <div id="reg-user-error" class="alert alert-danger" style="display:none"></div>
+                        <div style="display:flex;gap:0.75rem">
+                            <button class="btn btn-ghost" onclick="goStep1()">← Back</button>
+                            <button class="btn btn-primary" style="flex:1;padding:0.8rem;font-size:1rem"
+                                onclick="doRegister()" id="reg-user-btn">Create
+                                Account →</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="/app.js"></script>
+    <script>
+        async function handleGoogleLogin(response) {
+            try {
+                const idToken = response.credential;
+                const role = document.getElementById('login-role').value;
+
+                const loginBtn = document.getElementById('login-btn');
+                loginBtn.disabled = true; loginBtn.textContent = 'Authenticating...';
+
+                const data = await API.post('/api/auth/google', { idToken, role });
+                API.setAuth(data.token, data.user);
+
+                if (data.user.role === 'admin') window.location.href = '/admin-dashboard.html';
+                else window.location.href = '/hospitals.html';
+            } catch (err) {
+                const errEl = document.getElementById('login-error');
+                errEl.textContent = "Google OAuth Error: Either invalid credentials or no GOOGLE_CLIENT_ID configured on server. " + err.message;
+                errEl.style.display = 'block';
+                document.getElementById('login-btn').disabled = false;
+                document.getElementById('login-btn').textContent = 'Login →';
+            }
+        }
+
+        function showHero() {
+            document.getElementById('hero-section').style.display = 'block';
+            document.getElementById('auth-section').style.display = 'none';
+        }
+
+        function showAuth(mode) {
+            document.getElementById('hero-section').style.display = 'none';
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('login-card').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('register-card').style.display = mode === 'register' ? 'block' : 'none';
+            // Reset register to step 1
+            if (mode === 'register') { goStep1(); }
+        }
+
+        function onRoleChange() {
+            // nothing needed here now, handled in goStep2
+        }
+
+        function calcVisible(type) {
+            const total = parseInt(document.getElementById(`bed-${type}-total`).value) || 0;
+            const hidden = parseInt(document.getElementById(`bed-${type}-hidden`).value) || 0;
+            const visible = Math.max(0, total - hidden);
+            document.getElementById(`bed-${type}-visible`).textContent = visible;
+        }
+
+        function goStep2() {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+            const errEl = document.getElementById('reg-step1-error');
+            errEl.style.display = 'none';
+            if (!name) { errEl.textContent = 'Full name is required'; errEl.style.display = 'flex'; return; }
+            if (!email || !email.includes('@')) { errEl.textContent = 'Valid email is required'; errEl.style.display = 'flex'; return; }
+            if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters'; errEl.style.display = 'flex'; return; }
+
+            document.getElementById('reg-step1').style.display = 'none';
+            document.getElementById('step2-dot').style.background = 'var(--primary)';
+
+            if (role === 'admin') {
+                document.getElementById('reg-step2').style.display = 'block';
+                document.getElementById('reg-user-submit').style.display = 'none';
+            } else {
+                document.getElementById('reg-step2').style.display = 'none';
+                document.getElementById('reg-user-submit').style.display = 'block';
+                // For user, just submit immediately
+                doRegister();
+            }
+        }
+
+        function goStep1() {
+            document.getElementById('reg-step1').style.display = 'block';
+            document.getElementById('reg-step2').style.display = 'none';
+            document.getElementById('reg-user-submit').style.display = 'none';
+            document.getElementById('step2-dot').style.background = 'var(--border-strong)';
+        }
+
+        async function doLogin() {
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const errEl = document.getElementById('login-error');
+            errEl.style.display = 'none';
+            const btn = document.getElementById('login-btn');
+            btn.disabled = true; btn.textContent = 'Logging in…';
+            try {
+                const data = await API.post('/api/auth/login', { email, password });
+                API.setAuth(data.token, data.user);
+                window.location.href = data.user.role === 'admin' ? '/admin-dashboard.html' : '/hospitals.html';
+            } catch (err) {
+                errEl.textContent = err.message; errEl.style.display = 'flex';
+            } finally { btn.disabled = false; btn.textContent = 'Login →'; }
+        }
+
+        async function doRegister() {
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const password = document.getElementById('reg-password').value;
+            const role = document.getElementById('reg-role').value;
+
+            const body = { name, email, password, role };
+
+            if (role === 'admin') {
+                const hospName = document.getElementById('hosp-name').value.trim();
+                const city = document.getElementById('hosp-city').value.trim();
+                const phone = document.getElementById('hosp-phone').value.trim();
+                const address = document.getElementById('hosp-address').value.trim();
+                const errEl = document.getElementById('reg-step2-error');
+                errEl.style.display = 'none';
+
+                if (!hospName || !city) {
+                    errEl.textContent = 'Hospital name and city are required.';
+                    errEl.style.display = 'flex'; return;
+                }
+
+                const types = ['ICU', 'General', 'Emergency', 'Maternity'];
+                const hospital = { name: hospName, city, phone, address };
+                let hasAnyBed = false;
+                types.forEach(t => {
+                    const total = parseInt(document.getElementById(`bed-${t}-total`).value) || 0;
+                    const hidden = parseInt(document.getElementById(`bed-${t}-hidden`).value) || 0;
+                    const visible = Math.max(0, total - hidden);
+                    hospital[t] = total;
+                    hospital[`${t}_hidden`] = hidden;
+                    hospital[`${t}_visible`] = visible;
+                    if (total > 0) hasAnyBed = true;
+                });
+
+                if (!hasAnyBed) {
+                    errEl.textContent = 'Please enter at least one bed type with beds > 0.';
+                    errEl.style.display = 'flex'; return;
+                }
+
+                body.hospital = hospital;
+                const btn = document.getElementById('reg-btn');
+                btn.disabled = true; btn.textContent = 'Creating…';
+                try {
+                    const data = await API.post('/api/auth/register', body);
+                    API.setAuth(data.token, data.user);
+                    window.location.href = '/admin-dashboard.html';
+                } catch (err) {
+                    errEl.textContent = err.message; errEl.style.display = 'flex';
+                } finally { btn.disabled = false; btn.textContent = '🏥 Register Hospital & Create Account'; }
+
+            } else {
+                // Regular user
+                const errEl = document.getElementById('reg-user-error');
+                errEl.style.display = 'none';
+                const btn = document.getElementById('reg-user-btn');
+                if (btn) { btn.disabled = true; btn.textContent = 'Creating…'; }
+                try {
+                    const data = await API.post('/api/auth/register', body);
+                    API.setAuth(data.token, data.user);
+                    window.location.href = '/hospitals.html';
+                } catch (err) {
+                    errEl.textContent = err.message; errEl.style.display = 'flex';
+                    goStep1();
+                    document.getElementById('reg-step1-error').textContent = err.message;
+                    document.getElementById('reg-step1-error').style.display = 'flex';
+                } finally { if (btn) { btn.disabled = false; btn.textContent = 'Create Account →'; } }
+            }
+        }
+
+        // Enter key → login
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter' && document.getElementById('login-card')?.offsetParent !== null) doLogin();
+        });
+
+        // Redirect if already logged in
+        if (API.getToken()) {
+            const user = API.getUser();
+            window.location.href = user?.role === 'admin' ? '/admin-dashboard.html' : '/hospitals.html';
+        }
+
+        buildNavbar('');
+    </script>
+</body>
+
+</html>

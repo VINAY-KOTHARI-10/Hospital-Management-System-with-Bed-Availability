@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Queue Status — MediTrack</title>
+    <meta name="description" content="View your queue position and estimated wait time." />
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+    <nav class="navbar" id="navbar"></nav>
+
+    <div class="page-header">
+        <h1>⏳ Queue Management</h1>
+        <p>Join a waiting queue when beds are full — you'll be notified when a bed opens</p>
+    </div>
+
+    <div class="container section" style="max-width:700px">
+
+        <!-- Upcoming Appointments -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem">
+                <h2 style="font-size:1rem;font-weight:700;margin:0">📅 Upcoming Appointments</h2>
+                <button class="btn btn-ghost btn-sm" onclick="loadAppointments()">🔄 Refresh</button>
+            </div>
+            <div id="appointments-list">
+                <div style="text-align:center;padding:1rem">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Queue -->
+        <div class="card" style="margin-bottom:1.5rem">
+            <h2 style="font-size:1rem;font-weight:700;margin-bottom:1rem">Join a Waiting Queue</h2>
+            <div class="form-group">
+                <label class="form-label">Select Hospital</label>
+                <select class="form-control" id="q-hospital" onchange="loadQueueStatus()">
+                    <option value="">Choose hospital…</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Bed Type</label>
+                <select class="form-control" id="q-bedtype" onchange="loadQueueStatus()">
+                    <option value="">Select bed type…</option>
+                    <option value="ICU">🫀 ICU</option>
+                    <option value="General">🛏️ General</option>
+                    <option value="Emergency">🚨 Emergency</option>
+                    <option value="Maternity">👶 Maternity</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Reason</label>
+                <select class="form-control" id="q-reason">
+                    <option value="General illness">General Illness</option>
+                    <option value="Emergency">Emergency</option>
+                    <option value="Surgery">Surgery</option>
+                    <option value="Accident">Accident</option>
+                    <option value="Maternity">Maternity</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div id="q-error" class="alert alert-danger" style="display:none"></div>
+            <button class="btn btn-primary" onclick="joinQueue()" id="join-btn">⏳ Join Queue</button>
+        </div>
+
+        <!-- Queue Status -->
+        <div id="queue-status-section" style="display:none">
+            <div class="queue-card fade-in">
+                <div style="font-size:0.88rem;font-weight:600;color:var(--text-muted);margin-bottom:0.75rem">YOUR QUEUE
+                    POSITION</div>
+                <div class="queue-position" id="q-position">—</div>
+                <div style="font-size:1.1rem;color:var(--text-muted);margin:0.5rem 0">out of <strong
+                        id="q-total">—</strong> in queue</div>
+                <div style="margin-top:1.25rem;display:flex;gap:2rem;justify-content:center;flex-wrap:wrap">
+                    <div style="text-align:center">
+                        <div style="font-size:1.4rem;font-weight:700;color:var(--primary)" id="q-wait">—</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">Est. Wait</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:1.4rem;font-weight:700;color:var(--primary)" id="q-hospital-name">—</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">Hospital</div>
+                    </div>
+                    <div style="text-align:center">
+                        <div style="font-size:1.4rem;font-weight:700;color:var(--primary)" id="q-bed-type">—</div>
+                        <div style="font-size:0.8rem;color:var(--text-muted)">Bed Type</div>
+                    </div>
+                </div>
+                <div style="margin-top:1.5rem" class="alert alert-info">
+                    🔔 You will receive a notification when a <strong id="q-bed-notif">bed</strong> becomes available at
+                    your queued hospital.
+                </div>
+            </div>
+        </div>
+
+        <div id="not-in-queue" class="alert alert-info" style="display:none;margin-top:1rem">
+            ✅ You are not currently in any queue for this hospital/bed type.
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+    <script>
+        function onBedUpdate() { loadQueueStatus(); }
+
+        async function init() {
+            if (!requireAuth()) return;
+            buildNavbar('queue');
+            initSocket();
+
+            // Pre-fill from URL params
+            const params = new URLSearchParams(window.location.search);
+            const hosps = await API.get('/api/hospitals');
+            const sel = document.getElementById('q-hospital');
+            sel.innerHTML = '<option value="">Choose hospital…</option>' +
+                hosps.map(h => `<option value="${h._id}" data-name="${h.name}">${h.name} — ${h.city}</option>`).join('');
+
+            if (params.get('hospitalId')) {
+                sel.value = params.get('hospitalId');
+                await loadQueueStatus();
+            }
+            loadAppointments();
+        }
+
+        async function loadQueueStatus() {
+            const hospitalId = document.getElementById('q-hospital').value;
+            const bedType = document.getElementById('q-bedtype').value;
+            if (!hospitalId || !bedType) return;
+
+            const sel = document.getElementById('q-hospital');
+            const hospitalName = sel.options[sel.selectedIndex]?.dataset?.name || 'Hospital';
+
+            try {
+                const status = await API.get(`/api/queue/status/${hospitalId}/${bedType}`);
+
+                if (status.inQueue) {
+                    document.getElementById('queue-status-section').style.display = 'block';
+                    document.getElementById('not-in-queue').style.display = 'none';
+                    document.getElementById('q-position').textContent = '#' + status.position;
+                    document.getElementById('q-total').textContent = status.total;
+                    document.getElementById('q-wait').textContent = status.estimatedWaitMinutes >= 60
+                        ? Math.round(status.estimatedWaitMinutes / 60) + 'h'
+                        : status.estimatedWaitMinutes + ' min';
+                    document.getElementById('q-hospital-name').textContent = hospitalName;
+                    document.getElementById('q-bed-type').textContent = bedType;
+                    document.getElementById('q-bed-notif').textContent = bedType;
+                } else {
+                    document.getElementById('queue-status-section').style.display = 'none';
+                    document.getElementById('not-in-queue').style.display = 'flex';
+                }
+            } catch (_) { }
+        }
+
+        async function joinQueue() {
+            const hospitalId = document.getElementById('q-hospital').value;
+            const bedType = document.getElementById('q-bedtype').value;
+            const reason = document.getElementById('q-reason').value;
+            const errEl = document.getElementById('q-error');
+            errEl.style.display = 'none';
+
+            if (!hospitalId || !bedType) {
+                errEl.textContent = 'Please select a hospital and bed type.';
+                errEl.style.display = 'flex'; return;
+            }
+            const btn = document.getElementById('join-btn');
+            btn.disabled = true; btn.textContent = 'Joining…';
+            try {
+                const data = await API.post('/api/queue/join', { hospitalId, bedType, reason });
+                showToast(`Joined queue! Position: #${data.position}`, 'queue');
+                document.getElementById('not-in-queue').style.display = 'none';
+                loadQueueStatus();
+            } catch (err) {
+                errEl.textContent = err.message; errEl.style.display = 'flex';
+            } finally { btn.disabled = false; btn.textContent = '⏳ Join Queue'; }
+        }
+
+        async function loadAppointments() {
+            const list = document.getElementById('appointments-list');
+            if (!list) return;
+            try {
+                const bookings = await API.get('/api/bookings/my-bookings');
+                const appts = bookings
+                    .filter(b => b.appointmentSlot && ['pending', 'confirmed'].includes(b.status))
+                    .sort((a, b) => new Date(a.appointmentSlot) - new Date(b.appointmentSlot));
+
+                if (appts.length === 0) {
+                    list.innerHTML = '<div class="alert alert-info">No upcoming appointments scheduled.</div>';
+                    return;
+                }
+                const badge = s => s === 'confirmed' ? 'badge-green' : s === 'pending' ? 'badge-yellow' : 'badge-blue';
+                list.innerHTML = appts.map(b => `
+                  <div style="display:flex;justify-content:space-between;align-items:center;padding:0.65rem 0;border-bottom:1px solid var(--border);gap:0.75rem;flex-wrap:wrap">
+                    <div>
+                      <div style="font-weight:700">${b.hospitalId?.name || 'Hospital'}</div>
+                      <div style="font-size:0.82rem;color:var(--text-muted)">${b.bedType} · ${b.reason}</div>
+                    </div>
+                    <div style="text-align:right">
+                      <div style="font-weight:600;color:var(--primary)">${fmtDate(b.appointmentSlot)}</div>
+                      <span class="badge ${badge(b.status)}">${b.status}</span>
+                    </div>
+                  </div>`).join('');
+            } catch (_) {
+                list.innerHTML = '<div class="alert alert-info">No upcoming appointments.</div>';
+            }
+        }
+
+        // Auto-refresh queue status every 30 seconds
+        setInterval(loadQueueStatus, 30000);
+
+        init();
+    </script>
+</body>
+
+</html>
