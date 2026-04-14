@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Patient Score — MediTrack</title>
+    <link rel="stylesheet" href="/style.css" />
+    <style>
+        .score-ring {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            margin: 0 auto 1rem
+        }
+
+        .score-ring svg {
+            transform: rotate(-90deg)
+        }
+
+        .score-ring .score-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center
+        }
+
+        .score-ring .score-number {
+            font-size: 2.2rem;
+            font-weight: 900;
+            line-height: 1
+        }
+
+        .score-ring .score-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600
+        }
+
+        .tier-good {
+            color: #16a34a
+        }
+
+        .tier-ok {
+            color: #d97706
+        }
+
+        .tier-risk {
+            color: #dc2626
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.65rem 0;
+            border-bottom: 1px solid var(--border)
+        }
+
+        .stat-row:last-child {
+            border-bottom: none
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar" id="navbar"></nav>
+
+    <div class="page-header">
+        <h1>📊 Patient Reliability Score</h1>
+        <p>Your booking history and reliability rating</p>
+    </div>
+
+    <div class="container section" style="max-width:600px">
+
+        <div class="card" style="text-align:center;padding:2rem">
+            <!-- Score ring -->
+            <div class="score-ring" id="score-ring">
+                <svg width="150" height="150" viewBox="0 0 150 150">
+                    <circle cx="75" cy="75" r="62" fill="none" stroke="#e5e7eb" stroke-width="12" />
+                    <circle id="score-circle" cx="75" cy="75" r="62" fill="none" stroke="#16a34a" stroke-width="12"
+                        stroke-dasharray="389" stroke-dashoffset="389" stroke-linecap="round"
+                        style="transition:stroke-dashoffset 1.2s ease,stroke 0.5s" />
+                </svg>
+                <div class="score-text">
+                    <div class="score-number" id="score-num">—</div>
+                    <div class="score-label">/ 100</div>
+                </div>
+            </div>
+
+            <div id="score-tier" style="font-size:1rem;font-weight:700;margin-bottom:0.25rem"></div>
+            <div id="score-desc" style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem"></div>
+
+            <!-- Patient ID -->
+            <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:0.75rem 1.25rem;margin-bottom:1.25rem;font-family:monospace;font-size:1rem;font-weight:700;color:#15803d"
+                id="patient-id">Loading…</div>
+
+            <div class="stat-row"><span style="color:var(--text-muted)">Total Bookings</span><strong
+                    id="s-total">—</strong></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Cancellations</span><strong id="s-cancel"
+                    style="color:#dc2626">—</strong></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">No-Shows</span><strong id="s-noshow"
+                    style="color:#f97316">—</strong></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Penalty per cancellation</span><span
+                    style="color:var(--text-muted)">−10 points</span></div>
+            <div class="stat-row"><span style="color:var(--text-muted)">Penalty per no-show</span><span
+                    style="color:var(--text-muted)">−20 points</span></div>
+        </div>
+
+        <div style="margin-top:1.5rem">
+            <h2 style="font-size:1rem;font-weight:700;margin-bottom:0.75rem">📁 All Booking History</h2>
+            <div id="history-list">
+                <div style="text-align:center;padding:2rem">
+                    <div class="spinner"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+    <script>
+        async function load() {
+            if (!requireAuth()) return;
+            buildNavbar('booking');
+            try {
+                const data = await API.get('/api/bookings/score');
+                document.getElementById('patient-id').textContent = '🪪 Patient ID: ' + (data.patientId || 'Not assigned');
+                document.getElementById('score-num').textContent = data.score;
+                document.getElementById('s-total').textContent = data.totalBookings;
+                document.getElementById('s-cancel').textContent = data.totalCancellations;
+                document.getElementById('s-noshow').textContent = data.noShows;
+
+                // Ring animation
+                const circle = document.getElementById('score-circle');
+                const dash = 389;
+                const offset = dash - (dash * data.score / 100);
+                circle.style.strokeDashoffset = offset;
+                const color = data.score >= 70 ? '#16a34a' : data.score >= 40 ? '#d97706' : '#dc2626';
+                circle.style.stroke = color;
+
+                const tier = data.score >= 70 ? ['Excellent 🌟', 'tier-good', 'Your booking history is impeccable. Thanks for being reliable!']
+                    : data.score >= 40 ? ['Good 👍', 'tier-ok', 'You have some cancellations. Try to avoid them to improve your score.']
+                        : ['High Risk ⚠️', 'tier-risk', 'Multiple cancellations/no-shows detected. Please book responsibly.'];
+                document.getElementById('score-tier').innerHTML = `<span class="${tier[1]}">${tier[0]}</span>`;
+                document.getElementById('score-desc').textContent = tier[2];
+
+                const statusColors = { pending: 'badge-yellow', confirmed: 'badge-blue', active: 'badge-green', cancelled: 'badge-red', rejected: 'badge-red', discharged: 'badge-purple' };
+                document.getElementById('history-list').innerHTML = data.bookings.length === 0
+                    ? '<div class="alert alert-info">No booking history yet.</div>'
+                    : data.bookings.map(b => `
+        <div class="card" style="margin-bottom:0.65rem;padding:1rem">
+          <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:0.5rem">
+            <div>
+              <div style="font-weight:700">${b.hospitalId?.name || 'Hospital'}</div>
+              <div style="font-size:0.8rem;color:var(--text-muted)">${b.bedType} · ${b.reason} · ${fmtDate(b.createdAt)}</div>
+              ${b.bedSlotId ? `<div style="font-size:0.75rem;color:var(--primary)">Bed ${b.bedSlotId.bedNumber} · Room ${b.bedSlotId.room} · Floor ${b.bedSlotId.floor}</div>` : ''}
+              ${b.lowPriority ? '<div style="font-size:0.75rem;color:#f97316;font-weight:600">⚠️ Low Priority (not checked in)</div>' : ''}
+              ${b.adminNote ? `<div style="font-size:0.78rem;background:#f0f9ff;padding:0.3rem 0.5rem;border-radius:6px;margin-top:0.3rem">Admin note: ${b.adminNote}</div>` : ''}
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:0.5rem;flex-wrap:wrap">
+              <span class="badge ${statusColors[b.status] || 'badge-blue'}">${b.status}</span>
+            </div>
+          </div>
+        </div>`).join('');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+        load();
+    </script>
+</body>
+
+</html>
